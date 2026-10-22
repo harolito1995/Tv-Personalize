@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Semantic colour tokens for the launcher UI. The deep-blue, cyan and violet accents are kept
+  apart from the neutral surfaces so they are applied sparingly and can be reused by themes.
+-->
+<resources>
+
+    <!-- Surfaces. Dock band and cards are frosted: translucent over the wallpaper, opaque-looking
+         over the aurora fallback. -->
+    <color name="surface_background">#FF000000</color>
+    <color name="surface_dock">#B3101B26</color>
+    <color name="surface_card">#D91A2531</color>
+    <color name="surface_card_pressed">#E62E3B4C</color>
+    <color name="surface_panel_start">#F22A2A2E</color>
+    <color name="surface_panel_end">#F5161618</color>
+
+    <!-- Frosted pills -->
+    <color name="pill_fill_top">#2EFFFFFF</color>
+    <color name="pill_fill_bottom">#14FFFFFF</color>
+    <color name="pill_stroke">#38FFFFFF</color>
+    <color name="pill_focused">#F5FFFFFF</color>
+    <color name="pill_text_focused">#FF111111</color>
+    <color name="pill_text_primary">#FFFFFFFF</color>
+    <color name="pill_text_dim">#73FFFFFF</color>
+    <color name="pill_text_dim_focused">#99111111</color>
+
+    <!-- Type -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#F2FFFFFF</color>
+    <color name="text_tertiary">#B3FFFFFF</color>
+    <color name="text_muted">#A6FFFFFF</color>
+    <color name="text_dim">#8CFFFFFF</color>
+
+    <!-- Lines and scrims -->
+    <color name="outline_faint">#1FFFFFFF</color>
+    <color name="divider_faint">#33FFFFFF</color>
+    <color name="wallpaper_scrim">#66000000</color>
+    <color name="status_ok">#FF34C759</color>
+
+    <!-- Accents: reserved for sparse use (ambient glow fallback today, themes later). -->
+    <color name="accent_blue">#FF2B5CFF</color>
+    <color name="accent_cyan">#FF00A39A</color>
+    <color name="accent_violet">#FF8A3FFC</color>
+
+    <!-- Aurora Cinema: static fallback gradient shown when no wallpaper is set (deep blue,
+         petroleum, discreet turquoise — see drawable/bg_aurora.xml). -->
+    <color name="aurora_deep">#FF0A1F38</color>
+    <color name="aurora_petrol">#FF0C2E3B</color>
+    <color name="aurora_abyss">#FF050F1A</color>
+    <color name="aurora_teal">#FF2AD8C8</color>
+
+    <!-- Contrast scrims over the wallpaper: clock and controls at the top, title and dock below. -->
+    <color name="scrim_top_start">#8A000000</color>
+    <color name="scrim_bottom_mid">#66000000</color>
+    <color name="scrim_bottom_end">#B3000000</color>
+
+    <!-- Focus chrome with a single teal identity: dock band rim and outer focus glow. -->
+    <color name="dock_edge">#3D2AD8C8</color>
+</resources>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Launcher configuration. Edit this file, then run launcher/build-and-install.sh.
+  Package names: on the TV run `pm list packages` (tools/tv.py 'pm list packages').
+-->
+<resources>
+
+    <!-- Apps pinned to the dock row, in this order (the row shows the first 7 that are installed). Missing apps are skipped. -->
+    <string-array name="dock_apps">
+        <item>com.netflix.ninja</item>
+        <item>com.google.android.youtube.tv</item>
+        <item>com.disney.disneyplus</item>
+        <item>com.wbd.stream</item>
+        <item>com.amazon.amazonvideo.livingroom</item>
+        <item>com.crunchyroll.crunchyroid</item>
+        <item>com.spotify.tv.android</item>
+    </string-array>
+
+    <!-- Apps allowed to keep playing audio after you press Home (music players). Every other app is
+         paused when the home screen comes back. Needs the notification-listener access that
+         build-and-install grants; without it the launcher can only send a generic pause. -->
+    <string-array name="keep_playing_apps">
+        <item>com.spotify.tv.android</item>
+        <item>com.spotify.music</item>
+    </string-array>
+
+    <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
+    <string-array name="hidden_apps">
+        <item>com.mediatek.tv.oneworld.tvcenter</item>
+        <item>com.android.tv.settings</item>
+    </string-array>
+
+    <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
+    <string name="live_tv_package" translatable="false">com.mediatek.tv.oneworld.tvcenter</string>
+
+    <!-- Columns in the All apps grid. -->
+    <integer name="columns">4</integer>
+
+    <!-- Wallpaper catalogue manifest (GitHub Pages). Example after publishing this repo's docs/:
+         https://<user>.github.io/tv-vibehack/wallpapers/catalog.json
+         Leave empty to browse the bundled demo catalogue (no network needed). -->
+    <string name="catalog_url" translatable="false" />
+</resources>

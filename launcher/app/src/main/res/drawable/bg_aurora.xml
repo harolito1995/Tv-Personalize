@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Aurora Cinema fallback: a static aurora gradient in deep blue, petroleum and a discreet
+  turquoise glow. Purely local (works offline), shown immediately when no wallpaper is set.
+  Three cheap gradient layers; no blur, no shaders at runtime.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Base: deep blue at the top, petroleum through the middle, abyss at the bottom. -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="@color/aurora_deep"
+                android:centerColor="@color/aurora_petrol"
+                android:endColor="@color/aurora_abyss" />
+        </shape>
+    </item>
+
+    <!-- Turquoise aurora spot, upper right. -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.82"
+                android:centerY="0.10"
+                android:gradientRadius="420dp"
+                android:startColor="#4D2AD8C8"
+                android:endColor="#002AD8C8" />
+        </shape>
+    </item>
+
+    <!-- Deep blue wash, lower left. -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.08"
+                android:centerY="0.96"
+                android:gradientRadius="520dp"
+                android:startColor="#332B5CFF"
+                android:endColor="#002B5CFF" />
+        </shape>
+    </item>
+</layer-list>

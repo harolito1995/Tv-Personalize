@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Remote providers and wallpaper categories. -->
+    <string name="cat_anime">Anime</string>
+    <string name="cat_dragonball">Dragon Ball</string>
+    <string name="cat_naruto">Naruto</string>
+    <string name="cat_onepiece">One Piece</string>
+    <string name="cat_games">Video games</string>
+    <string name="cat_cyberpunk">Cyberpunk</string>
+    <string name="cat_fantasy">Fantasy</string>
+    <string name="cat_nature">Nature</string>
+    <string name="cat_cinema">Cinema</string>
+    <string name="cat_catalog">Catalogue</string>
+    <string name="remote_loading">Searching remote wallpapers\u2026</string>
+    <string name="remote_status">%1$d wallpapers \u00b7 %2$s</string>
+    <string name="remote_local_fallback">%1$d wallpapers from the local catalogue</string>
+    <string name="remote_err_offline">No connection. Check the TV\'s network.</string>
+    <string name="remote_err_http">The provider replied %1$d.</string>
+    <string name="remote_err_rate">Too many requests. Wait a moment.</string>
+    <string name="remote_err_network">Could not load remote wallpapers.</string>
+    <string name="remote_err_format">The provider returned invalid data.</string>
+    <string name="preview_err_rate">The provider rate-limited the download. Wait a moment and try again.</string>
+    <string name="app_name">Home</string>
+    <string name="inputs">Inputs</string>
+    <string name="wifi">Wi-Fi</string>
+    <string name="settings">Settings</string>
+    <string name="choose_input">Inputs</string>
+    <string name="connected">Connected</string>
+    <string name="standby">Standby</string>
+    <string name="not_connected">No device</string>
+    <string name="live_tv">Live TV</string>
+    <string name="no_inputs">No inputs found</string>
+    <string name="good_morning">Good morning</string>
+    <string name="good_afternoon">Good afternoon</string>
+    <string name="good_evening">Good evening</string>
+    <string name="good_night">Good night</string>
+    <string name="ethernet">Ethernet</string>
+    <string name="offline">Offline</string>
+    <string name="not_available">Not available on this TV</string>
+    <string name="cant_open">Can\'t open %1$s</string>
+    <string name="date_format">EEEE  d MMMM</string>
+    <string name="dream_name">Photo</string>
+    <string name="personalize">Personalize</string>
+    <string name="wallpaper_none">Black</string>
+    <string name="wallpaper_scan">Scan files</string>
+    <string name="wallpaper_pick">Choose file</string>
+    <string name="wallpaper_scanning">Scanning\u2026</string>
+    <string name="wallpaper_empty">No images or videos found. Copy them to the TV or a USB drive, then scan again.</string>
+    <string name="wallpaper_applied">Wallpaper applied</string>
+    <string name="wallpaper_cleared">Wallpaper removed</string>
+    <string name="wallpaper_recovered_local">USB wallpaper unavailable. Using the local recovery copy.</string>
+    <string name="wallpaper_unavailable">Wallpaper unavailable. Showing the theme background.</string>
+    <string name="add_favourite">Add to favourites</string>
+    <string name="remove_favourite">Remove from favourites</string>
+    <string name="move_left">Move left</string>
+    <string name="move_right">Move right</string>
+    <string name="app_info">App info</string>
+    <string name="dock_full">The dock holds %1$d favourites</string>
+    <string name="cat_local">Local</string>
+    <string name="cat_all">All</string>
+    <string name="catalog_loading">Loading catalogue\u2026</string>
+    <string name="catalog_count">%1$d wallpapers</string>
+    <string name="catalog_status_demo">%1$d wallpapers \u00b7 demo catalogue</string>
+    <string name="catalog_empty_cat">No wallpapers in this category.</string>
+    <string name="err_offline">No connection. Check the TV\'s network.</string>
+    <string name="err_http">The server replied %1$d.</string>
+    <string name="err_too_big">The catalogue is too large to load.</string>
+    <string name="err_format">The catalogue received is not valid.</string>
+    <string name="err_url">The catalogue address is not valid. HTTPS is required.</string>
+    <string name="err_network">Could not load the catalogue.</string>
+    <string name="preview_usb_save">Save to USB</string>
+    <string name="preview_usb_saving">Saving original to USB…</string>
+    <string name="preview_usb_saved_applied">Saved to USB and applied</string>
+    <string name="preview_usb_failed_kept">Could not save to USB. Check that the drive is connected and writable.\nPrevious wallpaper kept.</string>
+    <string name="preview_usb_permission">Could not keep permission to write to that folder. Choose the USB folder again.</string>
+    <string name="preview_usb_write_denied">Storage write permission is required to save to USB.</string>
+    <string name="usb_folder_title">Choose USB folder</string>
+    <string name="usb_folder_hint">Choose a folder, then select Use this folder.</string>
+    <string name="usb_folder_read_only">This USB drive is read-only. Choose a writable folder.</string>
+    <string name="usb_folder_use">Use this folder</string>
+    <string name="usb_folder_up">Up</string>
+    <string name="usb_folder_no_volume">No USB drive found. Connect a writable drive and try again.</string>
+        <string name="cat_favorites">Favorites</string>
+    <string name="favorites_empty">No wallpapers in Favorites. Add some from the preview screen!</string>
+    <string name="preview_apply_dream">Screensaver</string>
+    <string name="preview_applied_dream">Screensaver applied \u2713</string>
+    <string name="preview_favorite_add">Favorite</string>
+    <string name="preview_favorite_remove">Remove favorite</string>
+    <string name="preview_favorite_saved">Saved to Favorites</string>
+    <string name="preview_favorite_removed">Removed from Favorites</string>
+    <string name="preview_apply">Apply wallpaper</string>
+    <string name="preview_applied">Applied \u2713</string>
+    <string name="preview_back">Back</string>
+    <string name="preview_downloading">Downloading\u2026 %1$s</string>
+    <string name="preview_err_offline">Could not download the image. Check the connection and try again.</string>
+    <string name="preview_err_too_big">Image larger than %1$s.</string>
+    <string name="preview_err_invalid">The image could not be read.</string>
+    <string name="preview_kept_previous">Previous wallpaper kept.</string>
+    <string name="preview_on_apply_hint">The full image downloads only when you apply it.</string>
+    <string name="catalog_status_cached">%1$d wallpapers \u00b7 saved catalogue</string>
+    <string name="catalog_status_cached_date">%1$d wallpapers \u00b7 saved catalogue \u00b7 updated %2$s</string>
+    <string name="search_chip">Search</string>
+    <string name="search_title">Search wallpapers</string>
+    <string name="search_hint">Name, author or category</string>
+    <string name="search_done">Done</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_cancel">Cancel</string>
+    <plurals name="search_results">
+        <item quantity="one">%1$d result \u00b7 \u00ab%2$s\u00bb</item>
+        <item quantity="other">%1$d results \u00b7 \u00ab%2$s\u00bb</item>
+    </plurals>
+    <string name="search_empty">No results for \u00ab%1$s\u00bb.</string>
+    <string name="preview_dims_verified">%1$d \u00d7 %2$d \u00b7 verified</string>
+    <string name="preview_dims_declared">%1$d \u00d7 %2$d \u00b7 declared</string>
+    <string name="preview_dims_mismatch">thumbnail does not match</string>
+    <string name="preview_4k">4K</string>
+    <string name="page_prev">Previous</string>
+    <string name="page_next">Next</string>
+    <string name="page_of">%1$d / %2$d</string>
+    <string name="page_of_more">%1$d / %2$d+</string>
+    <string name="page_loading">Loading\u2026</string>
+
+    <!-- Personalize sections: themes, interface and wallpapers. -->
+    <string name="personalize_themes">Themes</string>
+    <string name="personalize_interface">Interface</string>
+    <string name="personalize_dream">Repose</string>
+    <string name="personalize_wallpapers">Wallpapers</string>
+    <string name="dream_pick">Repose photo</string>
+    <string name="dream_pick_title">Choose repose photo</string>
+    <string name="dream_pick_hint">Choose a photo for the screensaver. It will not change the Home wallpaper.</string>
+    <string name="dream_pick_scanning">Scanning photos\u2026</string>
+    <string name="dream_pick_empty">No photos found. Copy images to the TV or a USB drive.</string>
+    <string name="dream_use_wallpaper">Current wallpaper</string>
+    <string name="dream_applied">Repose photo applied</string>
+    <string name="dream_use_wallpaper_applied">The screensaver will use the current wallpaper</string>
+    <string name="dock_style_band">Band</string>
+    <string name="dock_style_floating">Floating</string>
+    <string name="theme_apply">Apply theme</string>
+    <string name="theme_applied">Theme applied \u2713</string>
+    <string name="theme_name_aurora" translatable="false">Aurora Cinema</string>
+    <string name="theme_name_midnight" translatable="false">Midnight Glass</string>
+    <string name="theme_name_arctic" translatable="false">Arctic Light</string>
+    <string name="theme_name_ember" translatable="false">Ember</string>
+    <string name="theme_tagline_aurora">Deep cinematic blue with turquoise light</string>
+    <string name="theme_tagline_midnight">Near-black glass with a cool blue accent</string>
+    <string name="theme_tagline_arctic">Bright surfaces with clear blue accents</string>
+    <string name="theme_tagline_ember">Warm charcoal with amber light</string>
+    <string name="dock_style_applied">Dock style applied</string>
+
+    <!-- Top Shelf and Widgets -->
+    <string name="top_shelf_title">&#x25B6;&#x0020;&#x0020;CONTINUE WATCHING</string>
+    <string name="top_shelf_empty_title">No recent playback</string>
+    <string name="top_shelf_empty_sub">Compatible streaming apps will appear here</string>
+    <string name="top_shelf_empty_title2">Continue watching</string>
+    <string name="top_shelf_demo_loaded">Cinematic demo loaded</string>
+    <string name="top_shelf_load_demo">Load cinematic demo</string>
+
+    <string name="top_shelf_card_empty">Configure card</string>
+    <string name="top_shelf_subtitle_empty">Press to choose an app</string>
+    <string name="top_shelf_last_used">Recently launched</string>
+    <string name="top_shelf_last_app">Last opened app</string>
+    <string name="top_shelf_recent_content">Recent content</string>
+    <string name="top_shelf_not_installed">App is not installed on this TV</string>
+    <string name="top_shelf_edit_hint">Long-press to change app</string>
+    <string name="weather_title">Weather</string>
+    <string name="weather_enabled">Show weather</string>
+    <string name="weather_city">City</string>
+    <string name="weather_attribution">Weather data by Open-Meteo (CC BY 4.0)</string>
+    <!-- New Wallpaper categories and filters for Phase 5.3 -->
+    <string name="cat_scifi">Sci-Fi</string>
+    <string name="cat_architecture">Architecture</string>
+    <string name="cat_space">Space</string>
+    <string name="filter_quality_4k">4K UHD</string>
+    <string name="filter_quality_2k">2K QHD</string>
+    <string name="filter_quality_all">All resolutions</string>
+    <string name="filter_provider">Provider</string>
+    <string name="filter_provider_all">All providers</string>
+    <string name="filter_sort_relevance">Relevance</string>
+    <string name="filter_sort_date">Newest</string>
+    <string name="filter_sort_top">Popular</string>
+    <string name="filter_title">Filter Wallpapers</string>
+    <string name="filter_quality">Resolution</string>
+    <string name="filter_sort">Sort by</string>
+    <string name="filter_provider_wallhaven">Wallhaven</string>
+    <string name="filter_provider_commons">Wikimedia Commons</string>
+    <string name="filter_reset">Reset Filters</string>
+    <!-- Home screen navigation -->
+    <string name="brand_title" translatable="false">TV-VibeHack</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_all_apps">All apps</string>
+    <string name="all_apps_title">All apps</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_themes">Themes</string>
+    <string name="custom_label">Custom</string>
+</resources>
+
+

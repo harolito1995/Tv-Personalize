@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_padding_horizontal">36dp</dimen>
+    <dimen name="screen_padding_top">22dp</dimen>
+    <dimen name="hero_start">72dp</dimen>
+    <dimen name="tile_width">180dp</dimen>
+    <dimen name="tile_height">101dp</dimen>
+    <dimen name="tile_radius">16dp</dimen>
+    <dimen name="pill_height">36dp</dimen>
+    <dimen name="pill_radius">18dp</dimen>
+
+    <!-- Header buttons -->
+    <dimen name="sphere_button_size">36dp</dimen>
+    <dimen name="sphere_icon_size">20dp</dimen>
+
+    <!-- Top Shelf 16:9 panoramic cards (compact, cinematic 240x135dp) -->
+    <dimen name="top_shelf_card_width">240dp</dimen>
+    <dimen name="top_shelf_card_height">135dp</dimen>
+    <dimen name="top_shelf_card_radius">14dp</dimen>
+
+    <!-- Aurora Cinema contrast scrims over the wallpaper. -->
+    <dimen name="scrim_top_height">320dp</dimen>
+    <dimen name="scrim_bottom_height">460dp</dimen>
+</resources>

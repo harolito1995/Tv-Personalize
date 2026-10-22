@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "updated": "2026-10-19",
+  "wallpapers": [
+    {
+      "id": "matterhorn-sunset",
+      "title": "Atardecer en el Matterhorn",
+      "category": "naturaleza",
+      "image": "https://upload.wikimedia.org/wikipedia/commons/2/21/Matterhorn_sunset_2016_%28Unsplash%29.jpg",
+      "thumb": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Matterhorn_sunset_2016_%28Unsplash%29.jpg/960px-Matterhorn_sunset_2016_%28Unsplash%29.jpg",
+      "width": 3840,
+      "height": 2560,
+      "author": "Sam Ferrara",
+      "license": "CC0",
+      "source": "https://commons.wikimedia.org/wiki/File:Matterhorn_sunset_2016_(Unsplash).jpg",
+      "alt": "Cima del Matterhorn teñida de rosa por el sol poniente"
+    },
+    {
+      "id": "pink-mountain-sunset",
+      "title": "Montaña rosa al atardecer",
+      "category": "naturaleza",
+      "image": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Altm%C3%BCnster_-_Pink_mountain_sunset.jpg",
+      "thumb": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Altm%C3%BCnster_-_Pink_mountain_sunset.jpg/960px-Altm%C3%BCnster_-_Pink_mountain_sunset.jpg",
+      "width": 4608,
+      "height": 2963,
+      "author": "simon",
+      "license": "CC0",
+      "source": "https://commons.wikimedia.org/wiki/File:Altm%C3%BCnster_-_Pink_mountain_sunset.jpg",
+      "alt": "Montañas en silueta bajo un cielo rosa al atardecer"
+    },
+    {
+      "id": "budapest-chain-bridge",
+      "title": "Puente de las Cadenas, Budapest",
+      "category": "ciudades",
+      "image": "https://upload.wikimedia.org/wikipedia/commons/f/fd/Sz%C3%A9chenyi_Chain_Bridge_in_Budapest_at_night.jpg",
+      "thumb": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Sz%C3%A9chenyi_Chain_Bridge_in_Budapest_at_night.jpg/960px-Sz%C3%A9chenyi_Chain_Bridge_in_Budapest_at_night.jpg",
+      "width": 3580,
+      "height": 2000,
+      "author": "Wilfredor",
+      "license": "CC0",
+      "source": "https://commons.wikimedia.org/wiki/File:Sz%C3%A9chenyi_Chain_Bridge_in_Budapest_at_night.jpg",
+      "alt": "Puente de las Cadenas iluminado de noche sobre el Danubio"
+    },
+    {
+      "id": "quebec-price-building",
+      "title": "Edificio Price iluminado, Quebec",
+      "category": "ciudades",
+      "image": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Price_Building_illuminated_at_night_in_Quebec_City.jpg",
+      "thumb": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Price_Building_illuminated_at_night_in_Quebec_City.jpg/960px-Price_Building_illuminated_at_night_in_Quebec_City.jpg",
+      "width": 4524,
+      "height": 2940,
+      "author": "Wilfredor",
+      "license": "CC0",
+      "source": "https://commons.wikimedia.org/wiki/File:Price_Building_illuminated_at_night_in_Quebec_City.jpg",
+      "alt": "Rascacielos histórico iluminado en el casco antiguo de Quebec"
+    },
+    {
+      "id": "frangipani-black",
+      "title": "Frangipani sobre negro",
+      "category": "minimalismo",
+      "image": "https://upload.wikimedia.org/wikipedia/commons/0/0b/Frangipani_-_Plumeria_flowers_on_a_black_background.jpg",
+      "thumb": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Frangipani_-_Plumeria_flowers_on_a_black_background.jpg/960px-Frangipani_-_Plumeria_flowers_on_a_black_background.jpg",
+      "width": 8000,
+      "height": 5334,
+      "author": "Hariyono Suwardi",
+      "license": "CC0",
+      "source": "https://commons.wikimedia.org/wiki/File:Frangipani_-_Plumeria_flowers_on_a_black_background.jpg",
+      "alt": "Flores de frangipani blancas sobre fondo negro"
+    }
+  ]
+}

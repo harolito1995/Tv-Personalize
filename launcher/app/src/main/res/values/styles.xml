@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TvHome" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <!-- Frosted pill, tvOS style. Optical hierarchy: secondary to Dock apps. -->
+    <style name="TopButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">@dimen/pill_height</item>
+        <item name="android:layout_marginStart">10dp</item>
+        <item name="android:paddingStart">13dp</item>
+        <item name="android:paddingEnd">15dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/pill_bg</item>
+        <item name="android:textColor">@drawable/pill_text</item>
+        <item name="android:textSize">13.5sp</item>
+        <item name="android:fontFamily">@font/outfit</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:drawablePadding">7dp</item>
+        <item name="android:drawableTint">@drawable/pill_text</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <!-- Legacy icon button for pagers / secondary views -->
+    <style name="IconButton">
+        <item name="android:layout_width">@dimen/pill_height</item>
+        <item name="android:layout_height">@dimen/pill_height</item>
+        <item name="android:layout_marginStart">10dp</item>
+        <item name="android:background">@drawable/pill_bg</item>
+        <item name="android:scaleType">centerInside</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:tint">@drawable/pill_text</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <!-- Header 44x44 dp circular sphere container for TV header -->
+    <style name="HeaderSphere">
+        <item name="android:layout_width">@dimen/sphere_button_size</item>
+        <item name="android:layout_height">@dimen/sphere_button_size</item>
+        <item name="android:layout_marginStart">12dp</item>
+        <item name="android:background">@drawable/sphere_button_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <!-- 20x20 dp centered vector icon inside 36x36 dp sphere -->
+    <style name="HeaderSphereIcon">
+        <item name="android:layout_width">@dimen/sphere_icon_size</item>
+        <item name="android:layout_height">@dimen/sphere_icon_size</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:scaleType">centerInside</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="android:tint">@drawable/pill_text</item>
+    </style>
+
+    <!-- Small uppercase header above each section (Personalize, Top Shelf, etc). -->
+    <style name="SectionLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text_dim</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/outfit</item>
+        <item name="android:letterSpacing">0.18</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+</resources>
