@@ -2,13 +2,21 @@
 
 Una pantalla de inicio personalizada y pensada para control remoto en Android TV y Google TV: aplicaciones favoritas, Continuar viendo, temas, clima por ubicación, fondos y resaltado de foco.
 
-- [English](README.md) · [Compilar e instalar](docs/INSTALLATION.md) · [Adaptar otra marca de TV](docs/TV_BRAND_ADAPTATION.md) · [Contribuir](CONTRIBUTING.md) · [Avisos](NOTICE.md)
+- [English](README.md) · [Compilar e instalar](docs/INSTALLATION.md) · [Adaptar otra marca de TV](docs/TV_BRAND_ADAPTATION.md) · [Capturas Caixun](docs/SCREENSHOTS.md) · [Contribuir](CONTRIBUTING.md) · [Avisos](NOTICE.md)
 
 ## Origen del proyecto
 
 HarolHome TV es una continuación personalizada y con nuevo nombre del proyecto público **Tv-Personalize**, creado por Harol Ardila: [github.com/harolito1995/Tv-Personalize](https://github.com/harolito1995/Tv-Personalize). Este repositorio conserva ese historial y reconoce el trabajo heredado. El nombre nuevo identifica esta versión personalizada; no afirma que el código se haya escrito desde cero ni oculta el proyecto público anterior.
 
-El ID de aplicación Android permanece como `com.gathin.tvhome` para actualizar instalaciones existentes sin desinstalar ni perder datos. Es un identificador técnico, no el nombre del producto.
+El paquete Java y sus carpetas usan `com.harolhome.tv`. El ID Android permanece como `com.gathin.tvhome` para actualizar la instalación existente del Caixun sin desinstalar ni perder datos; es un identificador de compatibilidad, no el nombre del producto.
+
+## Capturas del televisor Caixun
+
+Capturas reales del Caixun 4K con Android TV 14: la base visual de C1.3 Plan 4 y la pantalla actual de HarolHome TV. En las copias públicas se ocultaron las imágenes y títulos personales de Continuar viendo. Consulta [las notas de las capturas](docs/SCREENSHOTS.md).
+
+| Antes: base C1.3 Plan 4 | Después: HarolHome TV |
+| --- | --- |
+| ![Caixun antes de la actualización visual HarolHome](docs/images/caixun-before.jpg) | ![Caixun ejecutando HarolHome TV](docs/images/caixun-after.jpg) |
 
 ## Funciones
 
@@ -30,7 +38,7 @@ cd launcher
 .\gradlew.bat :app:assembleDebug
 ```
 
-En macOS/Linux: `./gradlew :app:assembleDebug`. El APK queda en `launcher/app/build/outputs/apk/debug/app-debug.apk`. Los APK generados y respaldos/capturas de un televisor no se publican.
+En macOS/Linux: `./gradlew :app:assembleDebug`. El APK queda en `launcher/app/build/outputs/apk/debug/app-debug.apk`. Los APK generados, respaldos y datos crudos del televisor no se publican. Se incluyen únicamente las dos capturas Caixun seleccionadas y anonimizadas para documentar el proyecto.
 
 ## Instalar y adaptar
 

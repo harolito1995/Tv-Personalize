@@ -17,7 +17,7 @@
         android:focusable="true"
         android:clickable="true">
 
-        <com.gathin.tvhome.ThemeCardView
+        <com.harolhome.tv.ThemeCardView
             android:id="@+id/themeMock"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />

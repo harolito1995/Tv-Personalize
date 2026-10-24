@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace 'com.gathin.tvhome'
+    namespace 'com.harolhome.tv'
     compileSdk 34
 
     defaultConfig {

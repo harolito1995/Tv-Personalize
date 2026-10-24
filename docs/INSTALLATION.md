@@ -48,7 +48,7 @@ For an existing installation, record its current state and pull its installed ba
 Check the serial and APK before installing. The `-r` update retains app data when package ID and signing key match. Never use `pm clear` or uninstall for a routine update. Press Home and choose HarolHome when Android asks. To select it explicitly:
 
 ```powershell
-& $adb -s "SERIAL" shell cmd package set-home-activity --user 0 com.gathin.tvhome/.MainActivity
+& $adb -s "SERIAL" shell cmd package set-home-activity --user 0 com.gathin.tvhome/com.harolhome.tv.MainActivity
 ```
 
 The stock launcher stays installed and enabled. Keep a route back to it in Android’s Home-app settings.
@@ -58,7 +58,7 @@ The stock launcher stays installed and enabled. Keep a route back to it in Andro
 Enable only features the TV owner accepts:
 
 - **Weather location:** allow location access in Android app settings. Without it, HarolHome tries IP-based geolocation, then uses the saved/default city.
-- **Pause media on Home:** `adb -s SERIAL shell cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.MediaSessionListener`. Confirm the TV’s prompt if shown. This listener is used to identify active playback sessions, not to read notification text.
+- **Pause media on Home:** `adb -s SERIAL shell cmd notification allow_listener com.gathin.tvhome/com.harolhome.tv.MediaSessionListener`. Confirm the TV’s prompt if shown. This listener is used to identify active playback sessions, not to read notification text.
 - **Local/USB wallpapers:** grant storage access only when needed.
 
 ## Recovery

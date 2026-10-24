@@ -2,13 +2,21 @@
 
 A personalized, remote-first home screen for Android TV and Google TV: app favorites, Continue Watching, themes, location-aware weather, wallpaper personalization, and consistent focus feedback.
 
-- [Español](README.es.md) · [Build and install](docs/INSTALLATION.md) · [TV brand adaptation](docs/TV_BRAND_ADAPTATION.md) · [Contributing](CONTRIBUTING.md) · [Notices](NOTICE.md)
+- [Español](README.es.md) · [Build and install](docs/INSTALLATION.md) · [TV brand adaptation](docs/TV_BRAND_ADAPTATION.md) · [Caixun screenshots](docs/SCREENSHOTS.md) · [Contributing](CONTRIBUTING.md) · [Notices](NOTICE.md)
 
 ## Project origin
 
 HarolHome TV is a customized continuation and rebrand of the public **Tv-Personalize** project created by Harol Ardila: [github.com/harolito1995/Tv-Personalize](https://github.com/harolito1995/Tv-Personalize). This repository keeps that source history and acknowledges inherited work. The new name identifies this customized version; it does not claim a clean-room rewrite or conceal the earlier public source.
 
-The Android application ID remains `com.gathin.tvhome` so existing installations can be updated without uninstalling or losing their data. It is a technical identifier, not the product name.
+The Java source namespace and folders use `com.harolhome.tv`. The Android application ID remains `com.gathin.tvhome` to support in-place updates of the existing Caixun installation; it is a compatibility identifier, not the product name.
+
+## Caixun TV screenshots
+
+Real screenshots from the Caixun 4K Android TV 14 installation, showing the earlier C1.3 Plan 4 baseline and the current HarolHome TV screen. Personal Continue Watching artwork and titles are masked in these public copies. See [capture notes](docs/SCREENSHOTS.md).
+
+| Before: C1.3 Plan 4 | After: HarolHome TV |
+| --- | --- |
+| ![Caixun TV before the HarolHome visual update](docs/images/caixun-before.jpg) | ![Caixun TV running HarolHome TV](docs/images/caixun-after.jpg) |
 
 ## Features
 
@@ -30,7 +38,7 @@ cd launcher
 .\gradlew.bat :app:assembleDebug
 ```
 
-On macOS/Linux use `./gradlew :app:assembleDebug`. Output: `launcher/app/build/outputs/apk/debug/app-debug.apk`. Generated APKs and device-specific captures/backups are not published.
+On macOS/Linux use `./gradlew :app:assembleDebug`. Output: `launcher/app/build/outputs/apk/debug/app-debug.apk`. Generated APKs, backups, and raw device data are not published. The two curated, redacted Caixun screenshots above are included as project documentation.
 
 ## Install and adapt
 
