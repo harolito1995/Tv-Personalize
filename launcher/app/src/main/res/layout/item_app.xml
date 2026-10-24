@@ -46,10 +46,6 @@
             android:textColor="@color/text_primary"
             android:textSize="13sp"
             android:fontFamily="@font/outfit"
-            android:shadowColor="#99000000"
-            android:shadowDx="0"
-            android:shadowDy="2"
-            android:shadowRadius="8"
             android:visibility="gone" />
     </FrameLayout>
 
@@ -69,8 +65,5 @@
         android:fontFamily="@font/outfit"
         android:fontVariationSettings="'wght' 500"
         android:letterSpacing="0.02"
-        android:shadowColor="#99000000"
-        android:shadowDx="0"
-        android:shadowDy="2"
-        android:shadowRadius="8" />
+ />
 </FrameLayout>

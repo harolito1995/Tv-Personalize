@@ -50,7 +50,7 @@
         android:paddingStart="@dimen/screen_padding_horizontal"
         android:paddingEnd="@dimen/screen_padding_horizontal"
         android:paddingTop="@dimen/screen_padding_top"
-        android:paddingBottom="16dp"
+        android:paddingBottom="28dp"
         android:clipChildren="false"
         android:clipToPadding="false">
 
@@ -117,11 +117,13 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
+                        android:maxWidth="160dp"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:fontFamily="@font/outfit"
                         android:fontVariationSettings="'wght' 400"
-                        android:singleLine="true" />
+                        android:singleLine="true"
+                        android:ellipsize="end" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -148,7 +150,8 @@
                         android:layout_height="20dp"
                         android:layout_gravity="center"
                         android:scaleType="centerInside"
-                        android:tint="#FFFFFFFF"
+                        android:duplicateParentState="true"
+                        android:tint="@drawable/pill_text"
                         android:src="@drawable/ic_input" />
                 </FrameLayout>
 
@@ -167,7 +170,8 @@
                         android:layout_height="20dp"
                         android:layout_gravity="center"
                         android:scaleType="centerInside"
-                        android:tint="#FFFFFFFF"
+                        android:duplicateParentState="true"
+                        android:tint="@drawable/pill_text"
                         android:src="@drawable/ic_settings" />
                 </FrameLayout>
 
@@ -186,7 +190,8 @@
                         android:layout_height="20dp"
                         android:layout_gravity="center"
                         android:scaleType="centerInside"
-                        android:tint="#FFFFFFFF"
+                        android:duplicateParentState="true"
+                        android:tint="@drawable/pill_text"
                         android:src="@drawable/ic_wifi" />
                 </FrameLayout>
             </LinearLayout>
@@ -196,7 +201,7 @@
         <TextView
             android:id="@+id/topShelfLabel"
             style="@style/SectionLabel"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="32dp"
             android:layout_marginBottom="8dp"
             android:gravity="center_vertical"
             android:textSize="14sp"
@@ -210,6 +215,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:clipChildren="false"
             android:clipToPadding="false" />
 
@@ -219,74 +225,133 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- Dock: Home, favourite apps, All apps. Filled by DockBar. -->
+        <!-- Dock: favourite apps. All apps and launcher tools are in the bottom bar. -->
         <LinearLayout
             android:id="@+id/dockRow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:orientation="horizontal"
-            android:gravity="top"
+            android:gravity="bottom"
             android:clipChildren="false"
             android:clipToPadding="false" />
 
-        <!-- Bottom actions: glass pills with Lucide icons and colored weather -->
+        <!-- Bottom actions: one Apps pill, then compact icon-and-label tools. -->
         <LinearLayout
             android:id="@+id/bottomBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="8dp"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="4dp">
+            android:gravity="center_vertical">
 
             <TextView
                 android:id="@+id/btnApps"
-                style="@style/TopButton"
-                android:layout_marginStart="0dp"
-                android:layout_height="38dp"
-                android:textSize="14sp"
+                style="@style/AppsPill"
                 android:drawableStart="@drawable/ic_apps"
                 android:text="@string/nav_apps" />
 
             <View
+                android:id="@+id/bottomDivider1"
                 android:layout_width="1dp"
                 android:layout_height="22dp"
-                android:layout_marginStart="20dp"
-                android:layout_marginEnd="12dp"
+                android:layout_marginStart="36dp"
                 android:background="@color/divider_faint" />
 
-            <TextView
+            <LinearLayout
                 android:id="@+id/btnSearch"
-                style="@style/TopButton"
-                android:layout_height="38dp"
-                android:textSize="14sp"
-                android:drawableStart="@drawable/ic_search"
-                android:text="@string/nav_search" />
+                style="@style/ToolButton"
+                android:layout_marginStart="45dp"
+                android:contentDescription="@string/nav_search">
 
-            <TextView
+                <FrameLayout
+                    android:id="@+id/btnSearchCircle"
+                    style="@style/ToolCircle">
+
+                    <ImageView
+                        android:id="@+id/btnSearchIcon"
+                        style="@style/ToolIcon"
+                        android:src="@drawable/ic_search" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/btnSearchLabel"
+                    style="@style/ToolLabel"
+                    android:text="@string/nav_search" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/btnPersonalize"
-                style="@style/TopButton"
-                android:layout_height="38dp"
-                android:textSize="14sp"
-                android:drawableStart="@drawable/ic_sparkle"
-                android:text="@string/personalize" />
+                style="@style/ToolButton"
+                android:layout_marginStart="34dp"
+                android:contentDescription="@string/personalize">
 
-            <TextView
+                <FrameLayout
+                    android:id="@+id/btnPersonalizeCircle"
+                    style="@style/ToolCircle">
+
+                    <ImageView
+                        android:id="@+id/btnPersonalizeIcon"
+                        style="@style/ToolIcon"
+                        android:src="@drawable/ic_sparkle" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/btnPersonalizeLabel"
+                    style="@style/ToolLabel"
+                    android:text="@string/personalize" />
+            </LinearLayout>
+
+            <View
+                android:id="@+id/bottomDivider2"
+                android:layout_width="1dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="15dp"
+                android:background="@color/divider_faint" />
+
+            <LinearLayout
                 android:id="@+id/btnThemes"
-                style="@style/TopButton"
-                android:layout_height="38dp"
-                android:textSize="14sp"
-                android:drawableStart="@drawable/ic_globe"
-                android:text="@string/nav_themes" />
+                style="@style/ToolButton"
+                android:layout_marginStart="18dp"
+                android:contentDescription="@string/nav_themes">
 
-            <TextView
+                <FrameLayout
+                    android:id="@+id/btnThemesCircle"
+                    style="@style/ToolCircle">
+
+                    <ImageView
+                        android:id="@+id/btnThemesIcon"
+                        style="@style/ToolIcon"
+                        android:src="@drawable/ic_globe" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/btnThemesLabel"
+                    style="@style/ToolLabel"
+                    android:text="@string/nav_themes" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/btnWeather"
-                style="@style/TopButton"
-                android:layout_height="38dp"
-                android:textSize="14sp"
-                android:drawableStart="@drawable/ic_weather_sun_cloud"
-                android:text="@string/weather_title" />
+                style="@style/ToolButton"
+                android:layout_marginStart="32dp"
+                android:contentDescription="@string/weather_title">
+
+                <FrameLayout
+                    android:id="@+id/btnWeatherCircle"
+                    style="@style/ToolCircle">
+
+                    <ImageView
+                        android:id="@+id/btnWeatherIcon"
+                        style="@style/ToolIcon"
+                        android:src="@drawable/ic_weather_sun_cloud" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/btnWeatherLabel"
+                    style="@style/ToolLabel"
+                    android:text="@string/weather_title" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

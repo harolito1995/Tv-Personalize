@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/usbRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FF000000">
@@ -14,10 +15,11 @@
         android:paddingBottom="26dp">
 
         <TextView
+            android:id="@+id/usbTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/usb_folder_title"
-            android:textColor="#FFFFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="34sp"
             android:fontFamily="@font/outfit"
             android:letterSpacing="-0.02"
@@ -30,7 +32,7 @@
             android:layout_marginTop="10dp"
             android:maxLines="2"
             android:ellipsize="middle"
-            android:textColor="@color/text_tertiary"
+            android:textColor="@color/text_secondary"
             android:textSize="15sp"
             android:fontFamily="@font/outfit" />
 
@@ -50,13 +52,12 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_marginTop="12dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
+            android:padding="8dp"
             android:divider="@null"
-            android:dividerHeight="0dp"
+            android:dividerHeight="4dp"
             android:scrollbars="none"
             android:listSelector="@drawable/usb_folder_row_bg"
-            android:drawSelectorOnTop="true"
+            android:drawSelectorOnTop="false"
             android:focusable="true"
             android:focusableInTouchMode="true" />
 

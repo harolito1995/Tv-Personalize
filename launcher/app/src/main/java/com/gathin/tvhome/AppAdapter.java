@@ -16,6 +16,7 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
@@ -79,7 +80,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         }
     }
 
-    static final float FOCUS_SCALE = 1.055f;
+    static final float FOCUS_SCALE = 1.045f;
 
     private final Context ctx;
     private final TileListener listener;
@@ -241,9 +242,14 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 scheduleLoad(e);
             }
         }
-        h.card.setBackground(ThemeKit.cardBackground(ctx, theme));
+        ThemeKit.applyCard(h.card, theme);
         h.label.setTextColor(theme.textPrimary);
-        h.name.setTextColor(theme.textSecondary);
+        h.name.setTextColor(theme.textPrimary);
+        int textShadow = theme.isLight() ? 0x00000000 : 0x80000000;
+        float shadowRadius = theme.isLight() ? 0f : 6f;
+        float shadowDy = theme.isLight() ? 0f : 2f;
+        h.label.setShadowLayer(shadowRadius, 0f, shadowDy, textShadow);
+        h.name.setShadowLayer(shadowRadius, 0f, shadowDy, textShadow);
         h.name.setText(e.label);
         h.name.setVisibility(position < unlabelledCount ? View.INVISIBLE : View.VISIBLE);
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
@@ -274,6 +280,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     private void showMenu(View anchor, Entry e) {
         float density = ctx.getResources().getDisplayMetrics().density;
         View panel = LayoutInflater.from(ctx).inflate(R.layout.popup_inputs, null);
+        ThemeKit.applyPopupPanel(panel, theme);
         LinearLayout rows = panel.findViewById(R.id.rows);
         final PopupWindow popup = new PopupWindow(panel, (int) (230 * density),
                 ViewGroup.LayoutParams.WRAP_CONTENT, true);
@@ -338,6 +345,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
 
     private void addMenuRow(LinearLayout rows, PopupWindow popup, int iconRes, String title, Runnable action) {
         View row = LayoutInflater.from(ctx).inflate(R.layout.item_menu, rows, false);
+        ThemeKit.applyPopupRow(row, theme);
         ((ImageView) row.findViewById(R.id.icon)).setImageResource(iconRes);
         ((TextView) row.findViewById(R.id.title)).setText(title);
         row.setOnClickListener(v -> {
@@ -352,9 +360,13 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                 .setComponent(e.component)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        long t0 = SystemClock.elapsedRealtime();
         try {
-            TopShelfStore.recordAppLaunch(ctx, e.pkg);
             ctx.startActivity(i);
+            long t1 = SystemClock.elapsedRealtime();
+            MainActivity.markAppLaunchStart(e.key, t0, t1 - t0);
+            final String pkg = e.pkg;
+            MAIN.post(() -> TopShelfStore.recordAppLaunch(ctx.getApplicationContext(), pkg));
         } catch (Exception ex) {
             Toast.makeText(ctx, ctx.getString(R.string.cant_open, e.label), Toast.LENGTH_SHORT).show();
         }
@@ -462,7 +474,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             name = v.findViewById(R.id.name);
 
             final float density = v.getResources().getDisplayMetrics().density;
-            final float radius = density * 16f;
+            final float radius = v.getResources().getDimension(R.dimen.tile_radius);
             card.setOutlineProvider(new ViewOutlineProvider() {
                 @Override
                 public void getOutline(View view, Outline outline) {

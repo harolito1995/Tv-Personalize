@@ -5,8 +5,11 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.graphics.drawable.GradientDrawable;
 import android.os.storage.StorageManager;
 import android.os.storage.StorageVolume;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -34,9 +37,30 @@ public class UsbFolderActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_usb_folder);
 
+        LauncherTheme theme = LauncherTheme.byId(Prefs.theme(this));
+        View usbRoot = findViewById(R.id.usbRoot);
+        if (usbRoot != null) {
+            usbRoot.setBackground(ThemeKit.fallback(this, theme));
+        }
+        TextView usbTitle = findViewById(R.id.usbTitle);
+        if (usbTitle != null) {
+            usbTitle.setTextColor(theme.textPrimary);
+        }
+
         path = findViewById(R.id.path);
         status = findViewById(R.id.status);
         list = findViewById(R.id.list);
+        path.setTextColor(theme.textSecondary);
+        status.setTextColor(theme.textDim);
+        list.setBackground(ThemeKit.dialogSurface(this, theme));
+
+        float density = getResources().getDisplayMetrics().density;
+        GradientDrawable selector = new GradientDrawable();
+        selector.setColor(theme.controlFocusFill);
+        selector.setCornerRadius(Math.round(12f * density));
+        selector.setStroke(Math.max(1, Math.round(1.25f * density)), theme.controlFocusStroke);
+        list.setSelector(selector);
+        list.setDrawSelectorOnTop(false);
 
         List<File> volumes = volumes();
         if (volumes.isEmpty()) {
@@ -46,7 +70,17 @@ public class UsbFolderActivity extends Activity {
 
         root = volumes.get(0);
         current = initialDir(root);
-        adapter = new ArrayAdapter<>(this, R.layout.usb_folder_row, new ArrayList<>());
+        adapter = new ArrayAdapter<String>(this, R.layout.usb_folder_row, new ArrayList<>()) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View v = super.getView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    boolean isAction = position >= 0 && position < rows.size() && rows.get(position).use;
+                    ((TextView) v).setTextColor(isAction ? theme.accent : theme.textPrimary);
+                }
+                return v;
+            }
+        };
         list.setAdapter(adapter);
         list.setOnItemClickListener((parent, view, position, id) -> onRow(position));
         show(current);

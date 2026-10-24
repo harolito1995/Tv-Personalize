@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Launcher configuration. Edit this file, then run launcher/build-and-install.sh.
-  Package names: on the TV run `pm list packages` (tools/tv.py 'pm list packages').
+  Package names: run `adb shell pm list packages` on the TV.
 -->
 <resources>
 
@@ -37,7 +37,7 @@
     <integer name="columns">4</integer>
 
     <!-- Wallpaper catalogue manifest (GitHub Pages). Example after publishing this repo's docs/:
-         https://<user>.github.io/tv-vibehack/wallpapers/catalog.json
+         https://<user>.github.io/HarolHome-TV/wallpapers/catalog.json
          Leave empty to browse the bundled demo catalogue (no network needed). -->
     <string name="catalog_url" translatable="false" />
 </resources>

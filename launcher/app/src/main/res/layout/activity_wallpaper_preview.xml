@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/previewRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FF000000">
@@ -12,6 +13,7 @@
         android:contentDescription="@null" />
 
     <View
+        android:id="@+id/previewScrim"
         android:layout_width="match_parent"
         android:layout_height="320dp"
         android:layout_gravity="bottom"
@@ -24,7 +26,9 @@
         android:paddingStart="56dp"
         android:paddingEnd="56dp"
         android:paddingTop="26dp"
-        android:paddingBottom="26dp">
+        android:paddingBottom="26dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
 
         <View
             android:layout_width="match_parent"
@@ -35,7 +39,7 @@
             android:id="@+id/title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="28sp"
             android:fontFamily="@font/outfit"
             android:fontVariationSettings="'wght' 300"
@@ -49,7 +53,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:textColor="@color/text_tertiary"
+            android:textColor="@color/text_secondary"
             android:textSize="15sp"
             android:fontFamily="@font/outfit"
             android:letterSpacing="0.01"
@@ -72,7 +76,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:textColor="#FFFFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="15sp"
             android:fontFamily="@font/outfit"
             android:lineSpacingMultiplier="1.2" />
@@ -81,7 +85,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
             <TextView
                 android:id="@+id/btnApply"

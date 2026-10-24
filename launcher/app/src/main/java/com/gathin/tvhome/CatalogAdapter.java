@@ -117,7 +117,7 @@ class CatalogAdapter extends RecyclerView.Adapter<WallpaperAdapter.Holder> {
     @Override
     public void onBindViewHolder(@NonNull WallpaperAdapter.Holder h, int position) {
         Catalog.Wallpaper w = items.get(position);
-        h.card.setBackground(ThemeKit.cardBackground(ctx, theme));
+        ThemeKit.applyCard(h.card, theme);
         h.name.setText(w.title);
         h.name.setTextColor(theme.textSecondary);
 
@@ -143,7 +143,7 @@ class CatalogAdapter extends RecyclerView.Adapter<WallpaperAdapter.Holder> {
         h.thumb.setImageDrawable(null);
         Bitmap cached = CACHE.get(w.id);
         if (cached != null) {
-            h.thumb.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            h.thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
             h.thumb.setAlpha(1f);
             h.thumb.setImageBitmap(cached);
         } else if (!failed.contains(w.id)) {
@@ -180,7 +180,7 @@ class CatalogAdapter extends RecyclerView.Adapter<WallpaperAdapter.Holder> {
     }
 
     private static void showPlaceholder(WallpaperAdapter.Holder h) {
-        h.thumb.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        h.thumb.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         h.thumb.setAlpha(0.22f);
         h.thumb.setImageResource(R.drawable.ic_image);
     }

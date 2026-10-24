@@ -32,8 +32,15 @@ final class LauncherTheme {
     int textPrimary, textSecondary, textDim;
     int scrimTop, scrimMid, scrimBottom, heroShadow;
 
-    // Focus chrome drawn by GlassView.
+    // Focus chrome drawn by GlassView and unified card/chip/dialog/input tokens.
     int glassGlow, glassRim;
+    int focusRing, cardBorderIdle;
+    // Focus strokes use the theme accent, with a dark keyline in ThemeKit for contrast over artwork.
+    int cardFocusStroke, cardSelectedStroke;
+    int controlFocusFill, controlFocusStroke;
+    int chipSelectedFill, chipSelectedStroke, chipSelectedText;
+    int chipSelectedFocusedFill, chipSelectedFocusedStroke, chipSelectedFocusedText;
+    int surfaceDialog, surfaceInput, surfaceInputFocused, inputStrokeIdle;
 
     private LauncherTheme(String id, int nameRes, int taglineRes) {
         this.id = id;
@@ -78,6 +85,12 @@ final class LauncherTheme {
         t.scrimTop = 0x8A000000; t.scrimMid = 0x66000000; t.scrimBottom = 0xB3000000;
         t.heroShadow = 0xA6000000;
         t.glassGlow = 0xFF2AD8C8; t.glassRim = 0xCCFFFFFF;
+        t.focusRing = 0xFF5CF0E2; t.cardBorderIdle = 0x26FFFFFF;
+        t.cardFocusStroke = t.focusRing; t.cardSelectedStroke = 0x665CF0E2;
+        t.controlFocusFill = 0xE62C3942; t.controlFocusStroke = t.focusRing;
+        t.chipSelectedFill = 0x292AD8C8; t.chipSelectedStroke = 0x702AD8C8; t.chipSelectedText = 0xFFFFFFFF;
+        t.chipSelectedFocusedFill = t.controlFocusFill; t.chipSelectedFocusedStroke = t.controlFocusStroke; t.chipSelectedFocusedText = t.textPrimary;
+        t.surfaceDialog = 0xF20D1824; t.surfaceInput = 0xCC071019; t.surfaceInputFocused = 0xE60B1724; t.inputStrokeIdle = 0x3DFFFFFF;
         return t;
     }
 
@@ -95,6 +108,12 @@ final class LauncherTheme {
         t.scrimTop = 0x8A05070C; t.scrimMid = 0x6605070C; t.scrimBottom = 0xB305070C;
         t.heroShadow = 0xA6000000;
         t.glassGlow = 0xFF6E9BFF; t.glassRim = 0xCCD9E4FF;
+        t.focusRing = 0xFF8FB3FF; t.cardBorderIdle = 0x26C2D1F0;
+        t.cardFocusStroke = t.focusRing; t.cardSelectedStroke = 0x668FB3FF;
+        t.controlFocusFill = 0xE62A3040; t.controlFocusStroke = t.focusRing;
+        t.chipSelectedFill = 0x2E6E9BFF; t.chipSelectedStroke = 0x706E9BFF; t.chipSelectedText = 0xFFF2F6FF;
+        t.chipSelectedFocusedFill = t.controlFocusFill; t.chipSelectedFocusedStroke = t.controlFocusStroke; t.chipSelectedFocusedText = t.textPrimary;
+        t.surfaceDialog = 0xF40B0F1A; t.surfaceInput = 0xCC060911; t.surfaceInputFocused = 0xE60A0F1D; t.inputStrokeIdle = 0x3DAFB9FF;
         return t;
     }
 
@@ -112,6 +131,12 @@ final class LauncherTheme {
         t.scrimTop = 0x99FFFFFF; t.scrimMid = 0x59FFFFFF; t.scrimBottom = 0xB8FFFFFF;
         t.heroShadow = 0xB3FFFFFF;
         t.glassGlow = 0xCC2B6CFF; t.glassRim = 0xCC0B1220;
+        t.focusRing = 0xFF1E6BFF; t.cardBorderIdle = 0x260B1220;
+        t.cardFocusStroke = t.focusRing; t.cardSelectedStroke = 0x661E6BFF;
+        t.controlFocusFill = 0xE4E3EAF2; t.controlFocusStroke = t.focusRing;
+        t.chipSelectedFill = 0x242B6CFF; t.chipSelectedStroke = 0x702B6CFF; t.chipSelectedText = 0xFF0B1220;
+        t.chipSelectedFocusedFill = t.controlFocusFill; t.chipSelectedFocusedStroke = t.controlFocusStroke; t.chipSelectedFocusedText = t.textPrimary;
+        t.surfaceDialog = 0xF7FFFFFF; t.surfaceInput = 0xFFFFFFFF; t.surfaceInputFocused = 0xFFFFFFFF; t.inputStrokeIdle = 0x380B1220;
         return t;
     }
 
@@ -129,6 +154,12 @@ final class LauncherTheme {
         t.scrimTop = 0x8A0D0603; t.scrimMid = 0x660D0603; t.scrimBottom = 0xB30D0603;
         t.heroShadow = 0xA6000000;
         t.glassGlow = 0xFFFF8A3D; t.glassRim = 0xCCFFE9D6;
+        t.focusRing = 0xFFFFA366; t.cardBorderIdle = 0x26FFD9B3;
+        t.cardFocusStroke = t.focusRing; t.cardSelectedStroke = 0x66FFA366;
+        t.controlFocusFill = 0xE62C231D; t.controlFocusStroke = t.focusRing;
+        t.chipSelectedFill = 0x2EFF8A3D; t.chipSelectedStroke = 0x70FF8A3D; t.chipSelectedText = 0xFFFFF4EA;
+        t.chipSelectedFocusedFill = t.controlFocusFill; t.chipSelectedFocusedStroke = t.controlFocusStroke; t.chipSelectedFocusedText = t.textPrimary;
+        t.surfaceDialog = 0xF41B110C; t.surfaceInput = 0xCC110A07; t.surfaceInputFocused = 0xE6180E0A; t.inputStrokeIdle = 0x3DFFD9B3;
         return t;
     }
 }

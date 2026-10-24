@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
-# Build the launcher APK and install it on the TV as the default home screen.
+# Build and update HarolHome on one explicitly selected Android TV.
+# The stock launcher remains enabled; app data is retained with adb install -r.
 set -euo pipefail
 cd "$(dirname "$0")"
-: "${TV_HOST:?set TV_HOST to the TV IP address, e.g. TV_HOST=192.168.1.50 $0}"
-STOCK_LAUNCHER="${STOCK_LAUNCHER:-com.google.android.tvlauncher}"
-export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17)}"
-export ANDROID_HOME="${ANDROID_HOME:-$([ -d ~/Library/Android/sdk ] && echo ~/Library/Android/sdk || echo /opt/homebrew/share/android-commandlinetools)}"
-export PATH="$JAVA_HOME/bin:$PATH"
-[ -f local.properties ] || echo "sdk.dir=$ANDROID_HOME" > local.properties
-./gradlew assembleDebug -q --console=plain
-PY=../tools/venv/bin/python
-[ -x "$PY" ] || PY=../tools/venv/Scripts/python.exe
-export MSYS_NO_PATHCONV=1
-APK=app/build/outputs/apk/debug/app-debug.apk
-"$PY" -I ../tools/b64push.py "$APK" /data/local/tmp/tvhome.apk
-printf '%s\n' \
-  "pm install -r /data/local/tmp/tvhome.apk" \
-  "rm -f /data/local/tmp/tvhome.apk" \
-  "pm grant com.gathin.tvhome android.permission.ACCESS_FINE_LOCATION 2>/dev/null; echo location-granted" \
-  "cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.MediaSessionListener; echo audio-guard-enabled" \
-  "cmd package set-home-activity --user 0 com.gathin.tvhome/.MainActivity" \
-  "pm disable-user --user 0 $STOCK_LAUNCHER" \
-  | "$PY" -I ../tools/tv.py --batch
-echo "Installed. Press Home on the remote to see it."
+: "${TV_SERIAL:?Set TV_SERIAL to the exact serial from adb devices -l}"
+ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+ADB="${ADB:-$ANDROID_HOME/platform-tools/adb}"
+if ! command -v "$ADB" >/dev/null 2>&1; then
+  echo "ADB not found. Set ADB or ANDROID_HOME to your Android SDK." >&2
+  exit 1
+fi
+[ -f local.properties ] || printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+./gradlew :app:assembleDebug --console=plain
+state="$("$ADB" -s "$TV_SERIAL" get-state 2>/dev/null || true)"
+[ "$state" = "device" ] || { echo "TV is not connected/authorized: $TV_SERIAL" >&2; exit 1; }
+APK="app/build/outputs/apk/debug/app-debug.apk"
+"$ADB" -s "$TV_SERIAL" install -r "$APK"
+"$ADB" -s "$TV_SERIAL" shell cmd package set-home-activity --user 0 com.gathin.tvhome/.MainActivity
+if [ "${GRANT_LOCATION:-0}" = 1 ]; then
+  "$ADB" -s "$TV_SERIAL" shell pm grant com.gathin.tvhome android.permission.ACCESS_FINE_LOCATION
+fi
+if [ "${ENABLE_AUDIO_PAUSE:-0}" = 1 ]; then
+  "$ADB" -s "$TV_SERIAL" shell cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.MediaSessionListener
+fi
+echo "HarolHome updated. App data and the stock launcher were preserved."

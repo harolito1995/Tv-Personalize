@@ -20,7 +20,7 @@
     <string name="remote_err_network">Could not load remote wallpapers.</string>
     <string name="remote_err_format">The provider returned invalid data.</string>
     <string name="preview_err_rate">The provider rate-limited the download. Wait a moment and try again.</string>
-    <string name="app_name">Home</string>
+    <string name="app_name">HarolHome TV</string>
     <string name="inputs">Inputs</string>
     <string name="wifi">Wi-Fi</string>
     <string name="settings">Settings</string>
@@ -105,6 +105,7 @@
     <string name="search_done">Done</string>
     <string name="search_clear">Clear</string>
     <string name="search_cancel">Cancel</string>
+    <string name="search_active_chip">Search: %1$s  ×</string>
     <plurals name="search_results">
         <item quantity="one">%1$d result \u00b7 \u00ab%2$s\u00bb</item>
         <item quantity="other">%1$d results \u00b7 \u00ab%2$s\u00bb</item>
@@ -152,8 +153,6 @@
     <string name="top_shelf_empty_title">No recent playback</string>
     <string name="top_shelf_empty_sub">Compatible streaming apps will appear here</string>
     <string name="top_shelf_empty_title2">Continue watching</string>
-    <string name="top_shelf_demo_loaded">Cinematic demo loaded</string>
-    <string name="top_shelf_load_demo">Load cinematic demo</string>
 
     <string name="top_shelf_card_empty">Configure card</string>
     <string name="top_shelf_subtitle_empty">Press to choose an app</string>
@@ -185,7 +184,7 @@
     <string name="filter_provider_commons">Wikimedia Commons</string>
     <string name="filter_reset">Reset Filters</string>
     <!-- Home screen navigation -->
-    <string name="brand_title" translatable="false">TV-VibeHack</string>
+    <string name="brand_title" translatable="false">HarolHome TV</string>
     <string name="nav_home">Home</string>
     <string name="nav_apps">Apps</string>
     <string name="nav_all_apps">All apps</string>
@@ -193,6 +192,7 @@
     <string name="nav_search">Search</string>
     <string name="nav_themes">Themes</string>
     <string name="custom_label">Custom</string>
+    <string name="all_apps_count">%1$d apps</string>
 </resources>
 
 

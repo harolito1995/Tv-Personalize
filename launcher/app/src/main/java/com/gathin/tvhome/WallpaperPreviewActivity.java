@@ -26,6 +26,8 @@ public class WallpaperPreviewActivity extends Activity {
 
     private static final long PROGRESS_INTERVAL_MS = 250;
 
+    private View rootView;
+    private View scrimView;
     private ImageView preview;
     private TextView title;
     private TextView meta;
@@ -35,6 +37,7 @@ public class WallpaperPreviewActivity extends Activity {
     private TextView btnApplyDream;
     private TextView btnFavorite;
     private TextView btnBack;
+    private LauncherTheme theme;
 
     private String id = "";
     private String titleText = "";
@@ -62,6 +65,8 @@ public class WallpaperPreviewActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_wallpaper_preview);
 
+        rootView = findViewById(R.id.previewRoot);
+        scrimView = findViewById(R.id.previewScrim);
         preview = findViewById(R.id.preview);
         title = findViewById(R.id.title);
         meta = findViewById(R.id.meta);
@@ -72,10 +77,20 @@ public class WallpaperPreviewActivity extends Activity {
         btnFavorite = findViewById(R.id.btnFavorite);
         btnBack = findViewById(R.id.btnBack);
 
-        LauncherTheme theme = LauncherTheme.byId(Prefs.theme(this));
-        ThemeKit.applyPill(btnApply, theme);
-        ThemeKit.applyPill(btnApplyDream, theme);
-        ThemeKit.applyPill(btnFavorite, theme);
+        theme = LauncherTheme.byId(Prefs.theme(this));
+        if (rootView != null) {
+            rootView.setBackground(ThemeKit.fallback(this, theme));
+        }
+        if (scrimView != null) {
+            scrimView.setBackground(ThemeKit.scrimBottom(this, theme));
+        }
+        title.setTextColor(theme.textPrimary);
+        meta.setTextColor(theme.textSecondary);
+        source.setTextColor(theme.textDim);
+        status.setTextColor(theme.textPrimary);
+        ThemeKit.applySelectableChip(btnApply, theme, false);
+        ThemeKit.applySelectableChip(btnApplyDream, theme, false);
+        ThemeKit.applySelectableChip(btnFavorite, theme, false);
         ThemeKit.applyPill(btnBack, theme);
 
         btnApply.setNextFocusRightId(R.id.btnApplyDream);
@@ -157,6 +172,9 @@ public class WallpaperPreviewActivity extends Activity {
     private void updateFavoriteButton() {
         boolean fav = WallpaperStore.isFavorite(this, id);
         btnFavorite.setText(fav ? R.string.preview_favorite_remove : R.string.preview_favorite_add);
+        if (theme != null) {
+            ThemeKit.applySelectableChip(btnFavorite, theme, fav);
+        }
     }
 
     private void updateMeta() {
@@ -272,6 +290,9 @@ public class WallpaperPreviewActivity extends Activity {
     private void markApplied() {
         applied = true;
         btnApply.setText(R.string.preview_applied);
+        if (theme != null) {
+            ThemeKit.applySelectableChip(btnApply, theme, true);
+        }
         status.setText("");
     }
 
@@ -319,6 +340,9 @@ public class WallpaperPreviewActivity extends Activity {
     private void markDreamApplied() {
         dreamApplied = true;
         btnApplyDream.setText(R.string.preview_applied_dream);
+        if (theme != null) {
+            ThemeKit.applySelectableChip(btnApplyDream, theme, true);
+        }
         status.setText("");
     }
 

@@ -20,7 +20,7 @@
     <string name="remote_err_network">No se pudieron cargar los fondos remotos.</string>
     <string name="remote_err_format">El proveedor devolvió datos no válidos.</string>
     <string name="preview_err_rate">El proveedor limitó la descarga. Espera un momento e inténtalo de nuevo.</string>
-    <string name="app_name">Inicio</string>
+    <string name="app_name">HarolHome TV</string>
     <string name="inputs">Entradas</string>
     <string name="wifi">Wi-Fi</string>
     <string name="settings">Ajustes</string>
@@ -105,6 +105,7 @@
     <string name="search_done">Listo</string>
     <string name="search_clear">Limpiar</string>
     <string name="search_cancel">Cancelar</string>
+    <string name="search_active_chip">Buscar: %1$s  ×</string>
     <plurals name="search_results">
         <item quantity="one">%1$d resultado \u00b7 \u00ab%2$s\u00bb</item>
         <item quantity="other">%1$d resultados \u00b7 \u00ab%2$s\u00bb</item>
@@ -148,8 +149,6 @@
     <string name="top_shelf_empty_title">Sin reproducciones recientes</string>
     <string name="top_shelf_empty_sub">Las aplicaciones compatibles aparecerÃ¡n aquÃ­</string>
     <string name="top_shelf_empty_title2">Continuar viendo</string>
-    <string name="top_shelf_demo_loaded">Demostración cinematográfica cargada</string>
-    <string name="top_shelf_load_demo">Cargar demostración cinematográfica</string>
 
     <string name="top_shelf_card_empty">Configurar tarjeta</string>
     <string name="top_shelf_subtitle_empty">Pulsa para asignar una aplicación</string>
@@ -188,6 +187,7 @@
     <string name="nav_search">Buscar</string>
     <string name="nav_themes">Temas</string>
     <string name="custom_label">Personalizado</string>
+    <string name="all_apps_count">%1$d aplicaciones</string>
 </resources>
 
 

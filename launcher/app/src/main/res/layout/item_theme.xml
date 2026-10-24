@@ -2,8 +2,10 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
     android:clipChildren="false"
     android:clipToPadding="false">
 
@@ -22,23 +24,24 @@
 
         <TextView
             android:id="@+id/themeName"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|start"
             android:layout_marginStart="8dp"
-            android:layout_marginBottom="5dp"
-            android:maxWidth="118dp"
+            android:layout_marginBottom="4dp"
+            android:layout_marginEnd="8dp"
             android:singleLine="true"
             android:ellipsize="end"
             android:textColor="#FFFFFFFF"
-            android:textSize="13sp"
+            android:textSize="12.5sp"
             android:fontFamily="@font/outfit"
             android:fontVariationSettings="'wght' 500"
             android:letterSpacing="0.02"
+            android:includeFontPadding="false"
             android:shadowColor="#99000000"
             android:shadowDx="0"
-            android:shadowDy="2"
-            android:shadowRadius="8" />
+            android:shadowDy="1"
+            android:shadowRadius="4" />
 
         <ImageView
             android:id="@+id/themeBadge"

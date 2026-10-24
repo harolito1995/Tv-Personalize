@@ -1,22 +1,40 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="screen_padding_horizontal">36dp</dimen>
     <dimen name="screen_padding_top">22dp</dimen>
     <dimen name="hero_start">72dp</dimen>
     <dimen name="tile_width">180dp</dimen>
     <dimen name="tile_height">101dp</dimen>
-    <dimen name="tile_radius">16dp</dimen>
+    <dimen name="tile_radius">14dp</dimen>
     <dimen name="pill_height">36dp</dimen>
     <dimen name="pill_radius">18dp</dimen>
+    <dimen name="panel_radius">22dp</dimen>
+    <dimen name="input_radius">12dp</dimen>
+    <dimen name="apps_pill_height">32dp</dimen>
+    <dimen name="apps_pill_min_width">78dp</dimen>
+    <dimen name="tool_circle_size">24dp</dimen>
+    <dimen name="tool_icon_size">14dp</dimen>
+    <dimen name="tool_label_gap">8dp</dimen>
+
+    <!-- Dock tiles: compact 16:9 mini-banners, half the width of the All apps grid. -->
+    <dimen name="dock_tile_width">90dp</dimen>
+    <dimen name="dock_tile_height">51dp</dimen>
+    <dimen name="dock_home_tile_width">90dp</dimen>
+    <dimen name="dock_home_tile_height">51dp</dimen>
+    <dimen name="dock_cell_height">80dp</dimen>
+    <dimen name="dock_tile_radius">10dp</dimen>
+    <dimen name="dock_item_gap">4dp</dimen>
 
     <!-- Header buttons -->
     <dimen name="sphere_button_size">36dp</dimen>
     <dimen name="sphere_icon_size">20dp</dimen>
 
-    <!-- Top Shelf 16:9 panoramic cards (compact, cinematic 240x135dp) -->
-    <dimen name="top_shelf_card_width">240dp</dimen>
-    <dimen name="top_shelf_card_height">135dp</dimen>
-    <dimen name="top_shelf_card_radius">14dp</dimen>
+    <!-- Top Shelf 16:9 cinematic cards: compact 148x83dp art surface with external caption. -->
+    <dimen name="top_shelf_card_width">160dp</dimen>
+    <dimen name="top_shelf_card_height">90dp</dimen>
+    <dimen name="top_shelf_empty_card_width">148dp</dimen>
+    <dimen name="top_shelf_empty_card_height">83dp</dimen>
+    <dimen name="top_shelf_card_radius">10dp</dimen>
 
     <!-- Aurora Cinema contrast scrims over the wallpaper. -->
     <dimen name="scrim_top_height">320dp</dimen>

@@ -3,6 +3,8 @@ package com.gathin.tvhome;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Outline;
+import android.view.ViewOutlineProvider;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Handler;
@@ -94,14 +96,23 @@ class WallpaperAdapter extends RecyclerView.Adapter<WallpaperAdapter.Holder> {
     @NonNull
     @Override
     public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return new Holder(LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_wallpaper, parent, false));
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_wallpaper, parent, false);
+        if (parent.getId() == R.id.settingsGrid) {
+            float d = parent.getResources().getDisplayMetrics().density;
+            ViewGroup.LayoutParams lp = v.getLayoutParams();
+            if (lp != null) {
+                lp.width = Math.round(284f * d);
+                v.setLayoutParams(lp);
+            }
+        }
+        return new Holder(v);
     }
 
     @Override
     public void onBindViewHolder(@NonNull Holder h, int position) {
         Item it = items.get(position);
-        h.card.setBackground(ThemeKit.cardBackground(ctx, theme));
+        ThemeKit.applyCard(h.card, theme);
         h.name.setText(it.isNone ? ctx.getString(R.string.wallpaper_none) : it.name);
         h.name.setTextColor(theme.textSecondary);
         boolean selected = it.uri != null && it.uri.toString().equals(selectedUri);
@@ -125,6 +136,8 @@ class WallpaperAdapter extends RecyclerView.Adapter<WallpaperAdapter.Holder> {
             String key = it.uri.toString();
             Bitmap cached = CACHE.get(key);
             if (cached != null) {
+                h.thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                h.thumb.setAlpha(1f);
                 h.thumb.setImageBitmap(cached);
             } else {
                 THUMBS.execute(() -> {
@@ -196,6 +209,14 @@ class WallpaperAdapter extends RecyclerView.Adapter<WallpaperAdapter.Holder> {
             name = v.findViewById(R.id.name);
 
             final float density = v.getResources().getDisplayMetrics().density;
+            final float radius = v.getResources().getDimension(R.dimen.tile_radius);
+            card.setOutlineProvider(new ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, Outline outline) {
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
+                }
+            });
+            card.setClipToOutline(true);
             card.setOnFocusChangeListener((view, focused) -> {
                 float s = focused ? 1.045f : 1.0f;
                 view.animate().scaleX(s).scaleY(s)

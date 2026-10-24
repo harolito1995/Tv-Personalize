@@ -3,7 +3,9 @@
     android:id="@+id/personalizeRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000">
+    android:background="#FF000000"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,14 +14,18 @@
         android:paddingStart="56dp"
         android:paddingEnd="56dp"
         android:paddingTop="12dp"
-        android:paddingBottom="10dp">
+        android:paddingBottom="10dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
 
-        <!-- Top bar: Title + Search (icon only) + Settings (icon only) -->
+        <!-- Top bar: Title + active search chip + Search (icon only) + Filter + Settings -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="44dp"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
             <TextView
                 android:id="@+id/title"
@@ -33,6 +39,16 @@
                 android:fontVariationSettings="'wght' 300"
                 android:letterSpacing="-0.02"
                 android:includeFontPadding="false" />
+
+            <TextView
+                android:id="@+id/chipActiveSearch"
+                style="@style/TopButton"
+                android:layout_marginStart="0dp"
+                android:layout_marginEnd="6dp"
+                android:maxWidth="320dp"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                android:visibility="gone" />
 
             <ImageView
                 android:id="@+id/btnSearch"
@@ -57,19 +73,27 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginTop="6dp">
+            android:layout_marginTop="6dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
             <!-- Wallpaper catalogue: categories, results and explicit pagination. -->
             <LinearLayout
                 android:id="@+id/catalogPanel"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:clipChildren="false"
+                android:clipToPadding="false">
 
                 <HorizontalScrollView
                     android:id="@+id/catScroll"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
                     android:scrollbars="none"
                     android:focusable="false"
                     android:clipChildren="false"
@@ -101,12 +125,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:layout_marginTop="4dp">
+                    android:layout_marginTop="4dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/grid"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="8dp"
                         android:clipToPadding="false"
                         android:clipChildren="false"
                         android:overScrollMode="never"
@@ -147,12 +175,14 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Settings: themes, dock, screensaver and local files. -->
+            <!-- Settings: themes, dock, weather, screensaver and local files. -->
             <LinearLayout
                 android:id="@+id/settingsPanel"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
+                android:clipChildren="false"
+                android:clipToPadding="false"
                 android:visibility="gone">
 
                 <TextView
@@ -165,6 +195,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
                     android:scrollbars="none"
                     android:focusable="false"
                     android:clipChildren="false"
@@ -202,6 +234,7 @@
                         style="@style/TopButton"
                         android:text="@string/dock_style_floating" />
                 </LinearLayout>
+
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -229,13 +262,15 @@
                         android:id="@+id/weatherAttribution"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:maxWidth="220dp"
+                        android:singleLine="true"
+                        android:ellipsize="end"
                         android:layout_marginStart="16dp"
                         android:textColor="@color/text_dim"
                         android:textSize="11sp"
                         android:fontFamily="@font/outfit"
                         android:text="@string/weather_attribution" />
                 </LinearLayout>
-
 
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -298,7 +333,7 @@
                     android:id="@+id/settingsStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="2dp"
                     android:textColor="#8CFFFFFF"
                     android:textSize="12sp"
                     android:fontFamily="@font/outfit"
@@ -311,13 +346,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:layout_marginTop="2dp">
+                    android:layout_marginTop="2dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/settingsGrid"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:paddingBottom="16dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="12dp"
                         android:clipToPadding="false"
                         android:clipChildren="false"
                         android:overScrollMode="never"

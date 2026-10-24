@@ -8,12 +8,12 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -24,17 +24,21 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * TV remote-navigable dialog for configuring a Top Shelf card:
  * Select destination app from installed applications or reset to auto-detection.
  */
 public final class TopShelfEditDialog {
+
+    private static final ExecutorService APP_LOAD_EXEC = Executors.newSingleThreadExecutor();
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     public interface OnSlotUpdatedListener {
         void onSlotUpdated(int slot);
@@ -59,22 +63,15 @@ public final class TopShelfEditDialog {
         root.setOrientation(android.widget.LinearLayout.VERTICAL);
         root.setPadding((int) (24 * density), (int) (24 * density), (int) (24 * density), (int) (24 * density));
 
-        // Dark glass background
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF0121722);
-        bg.setCornerRadius(20 * density);
-        bg.setStroke((int) (1.5f * density), theme.accent);
-        root.setBackground(bg);
+        root.setBackground(ThemeKit.dialogSurface(context, theme));
 
-        // Header Title
         TextView header = new TextView(context);
         header.setText((context.getString(R.string.top_shelf_card_empty) + " " + (slot + 1)).toUpperCase());
-        header.setTextColor(Color.WHITE);
+        header.setTextColor(theme.textPrimary);
         header.setTextSize(18);
         header.setPadding(0, 0, 0, (int) (14 * density));
         root.addView(header);
 
-        // Subtitle / instructions
         TextView subtitle = new TextView(context);
         subtitle.setText(R.string.top_shelf_edit_hint);
         subtitle.setTextColor(theme.textDim);
@@ -82,29 +79,9 @@ public final class TopShelfEditDialog {
         subtitle.setPadding(0, 0, 0, (int) (12 * density));
         root.addView(subtitle);
 
-                // Demo cinematic button
-        TextView btnDemo = new TextView(context);
-        btnDemo.setText("▶  " + context.getString(R.string.top_shelf_load_demo));
-        btnDemo.setTextColor(theme.accent);
-        btnDemo.setTextSize(14);
-        btnDemo.setFocusable(true);
-        btnDemo.setClickable(true);
-        btnDemo.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
-        ThemeKit.applyPill(btnDemo, theme);
-        btnDemo.setOnClickListener(v -> {
-            TopShelfStore.loadDemo(context);
-            Toast.makeText(context, R.string.top_shelf_demo_loaded, Toast.LENGTH_SHORT).show();
-            if (listener != null) {
-                listener.onSlotUpdated(0);
-                listener.onSlotUpdated(1);
-            }
-            dialog.dismiss();
-        });
-        root.addView(btnDemo);
-
-        // Reset to auto button
         TextView btnReset = new TextView(context);
-        btnReset.setText("↺  Restablecer a automático");
+        btnReset.setId(View.generateViewId());
+        btnReset.setText("\u21BA  Restablecer a autom\u00E1tico");
         btnReset.setTextColor(theme.textPrimary);
         btnReset.setTextSize(14);
         btnReset.setFocusable(true);
@@ -117,34 +94,45 @@ public final class TopShelfEditDialog {
         btnReset.setLayoutParams(rParams);
         btnReset.setOnClickListener(v -> {
             TopShelfStore.resetSlot(context, slot);
-            Toast.makeText(context, "Tarjeta restablecida a automático", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Tarjeta restablecida a autom\u00E1tico", Toast.LENGTH_SHORT).show();
             if (listener != null) listener.onSlotUpdated(slot);
             dialog.dismiss();
         });
         root.addView(btnReset);
 
-        // Divider
         View divider = new View(context);
-        divider.setBackgroundColor(0x33FFFFFF);
+        divider.setBackgroundColor(theme.cardBorderIdle);
         android.widget.LinearLayout.LayoutParams dParams = new android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT, (int) (1 * density));
         dParams.setMargins(0, (int) (14 * density), 0, (int) (10 * density));
         root.addView(divider, dParams);
 
-        // Section header for apps
         TextView appsLabel = new TextView(context);
-        appsLabel.setText("ELEGIR APLICACIÓN");
+        appsLabel.setText("ELEGIR APLICACI\u00D3N");
         appsLabel.setTextColor(theme.textDim);
         appsLabel.setTextSize(12);
         appsLabel.setPadding(0, 0, 0, (int) (8 * density));
         root.addView(appsLabel);
 
-        // List of installed apps
-        List<AppEntry> apps = getInstalledApps(context);
+        final List<AppEntry> apps = new ArrayList<>();
         ListView listView = new ListView(context);
+        listView.setId(View.generateViewId());
         listView.setDivider(null);
         listView.setDividerHeight((int) (4 * density));
-        listView.setAdapter(new ArrayAdapter<AppEntry>(context, 0, apps) {
+        listView.setItemsCanFocus(false);
+        listView.setFocusable(true);
+        listView.setFocusableInTouchMode(true);
+        btnReset.setNextFocusDownId(listView.getId());
+        listView.setNextFocusUpId(btnReset.getId());
+
+        GradientDrawable selector = new GradientDrawable();
+        selector.setColor(theme.controlFocusFill);
+        selector.setCornerRadius(Math.round(12f * density));
+        selector.setStroke(Math.max(1, Math.round(1.25f * density)), theme.controlFocusStroke);
+        listView.setSelector(selector);
+        listView.setDrawSelectorOnTop(false);
+
+        final ArrayAdapter<AppEntry> adapter = new ArrayAdapter<AppEntry>(context, 0, apps) {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
@@ -154,8 +142,11 @@ public final class TopShelfEditDialog {
                     rowLayout.setOrientation(android.widget.LinearLayout.HORIZONTAL);
                     rowLayout.setGravity(Gravity.CENTER_VERTICAL);
                     rowLayout.setPadding((int) (12 * density), (int) (10 * density), (int) (12 * density), (int) (10 * density));
-                    rowLayout.setFocusable(true);
-                    rowLayout.setClickable(true);
+                    // Crucial for Android TV ListView: child rows must NOT be focusable or clickable,
+                    // otherwise they swallow KEYCODE_DPAD_CENTER and prevent OnItemClickListener from firing!
+                    rowLayout.setFocusable(false);
+                    rowLayout.setClickable(false);
+                    rowLayout.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
 
                     ImageView icon = new ImageView(context);
                     icon.setId(android.R.id.icon);
@@ -166,7 +157,7 @@ public final class TopShelfEditDialog {
                     TextView label = new TextView(context);
                     label.setId(android.R.id.text1);
                     label.setTextSize(14);
-                    label.setTextColor(Color.WHITE);
+                    label.setTextColor(theme.textPrimary);
                     label.setPadding((int) (12 * density), 0, 0, 0);
                     rowLayout.addView(label);
 
@@ -179,15 +170,16 @@ public final class TopShelfEditDialog {
                     TextView tv = row.findViewById(android.R.id.text1);
                     if (iv != null) iv.setImageDrawable(item.icon);
                     if (tv != null) tv.setText(item.label);
-                    ThemeKit.applyPill(row, theme);
                 }
                 return row;
             }
-        });
+        };
+        listView.setAdapter(adapter);
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
+            if (position < 0 || position >= apps.size()) return;
             AppEntry entry = apps.get(position);
-            TopShelfStore.saveSlot(context, slot, entry.label, "Acceso directo", "", entry.pkg);
+            TopShelfStore.saveSlot(context, slot, entry.label, "", "", entry.pkg);
             Toast.makeText(context, entry.label + " asignada", Toast.LENGTH_SHORT).show();
             if (listener != null) listener.onSlotUpdated(slot);
             dialog.dismiss();
@@ -199,6 +191,22 @@ public final class TopShelfEditDialog {
 
         dialog.setContentView(root);
         dialog.show();
+        btnReset.requestFocus();
+
+        final Context appCtx = context.getApplicationContext();
+        APP_LOAD_EXEC.execute(() -> {
+            final List<AppEntry> loaded = getInstalledApps(appCtx);
+            MAIN.post(() -> {
+                if (!dialog.isShowing()) return;
+                apps.clear();
+                apps.addAll(loaded);
+                adapter.notifyDataSetChanged();
+                if (!apps.isEmpty()) {
+                    listView.setSelection(0);
+                    listView.requestFocus();
+                }
+            });
+        });
     }
 
     private static class AppEntry {
@@ -220,7 +228,9 @@ public final class TopShelfEditDialog {
 
         Intent leanback = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         for (ResolveInfo ri : pm.queryIntentActivities(leanback, 0)) {
+            if (ri.activityInfo == null) continue;
             String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(context.getPackageName())) continue;
             if (seen.add(pkg)) {
                 result.add(new AppEntry(ri.loadLabel(pm).toString(), pkg, ri.loadIcon(pm)));
             }
@@ -228,7 +238,9 @@ public final class TopShelfEditDialog {
 
         Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
         for (ResolveInfo ri : pm.queryIntentActivities(launcher, 0)) {
+            if (ri.activityInfo == null) continue;
             String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(context.getPackageName())) continue;
             if (seen.add(pkg)) {
                 result.add(new AppEntry(ri.loadLabel(pm).toString(), pkg, ri.loadIcon(pm)));
             }

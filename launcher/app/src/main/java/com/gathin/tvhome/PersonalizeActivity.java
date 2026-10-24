@@ -2,9 +2,12 @@ package com.gathin.tvhome;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Outline;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -14,9 +17,13 @@ import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.ContextThemeWrapper;
+import android.view.Gravity;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.ViewTreeObserver;
 import android.view.animation.DecelerateInterpolator;
 import android.view.inputmethod.EditorInfo;
@@ -30,6 +37,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.ByteArrayOutputStream;
@@ -79,6 +87,7 @@ public class PersonalizeActivity extends Activity {
     private TextView pageLabel;
     private ImageView btnPrev;
     private ImageView btnNext;
+    private TextView chipActiveSearch;
     private ImageView btnSearch;
     private ImageView btnSettings;
     private ImageView btnFilter;
@@ -144,6 +153,8 @@ public class PersonalizeActivity extends Activity {
         pageLabel = findViewById(R.id.pageLabel);
         btnPrev = findViewById(R.id.btnPrev);
         btnNext = findViewById(R.id.btnNext);
+        chipActiveSearch = findViewById(R.id.chipActiveSearch);
+        if (chipActiveSearch != null) chipActiveSearch.setOnClickListener(v -> clearActiveSearch());
         btnSearch = findViewById(R.id.btnSearch);
         btnFilter = findViewById(R.id.btnFilter);
         btnSettings = findViewById(R.id.btnSettings);
@@ -177,7 +188,7 @@ public class PersonalizeActivity extends Activity {
 
         grid.setLayoutManager(new GridLayoutManager(this, GRID_COLUMNS));
         grid.setHasFixedSize(true);
-        settingsGrid.setLayoutManager(new GridLayoutManager(this, GRID_COLUMNS));
+        settingsGrid.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         settingsGrid.setHasFixedSize(true);
 
         localAdapter = new WallpaperAdapter(this, this::apply);
@@ -203,18 +214,44 @@ public class PersonalizeActivity extends Activity {
         TextView btnNone = findViewById(R.id.btnNone);
         TextView btnScan = findViewById(R.id.btnScan);
         TextView btnPick = findViewById(R.id.btnPick);
-        chipDockBand.setNextFocusDownId(R.id.btnDreamPick);
-        chipDockFloat.setNextFocusDownId(R.id.btnDreamPick);
-        dreamPick.setNextFocusUpId(R.id.chipDockBand);
-        dreamReset.setNextFocusUpId(R.id.chipDockBand);
+        chipDockBand.setNextFocusLeftId(R.id.chipDockBand);
+        chipDockBand.setNextFocusRightId(R.id.chipDockFloat);
+        chipDockFloat.setNextFocusLeftId(R.id.chipDockBand);
+        chipDockFloat.setNextFocusRightId(R.id.chipDockFloat);
+        chipDockBand.setNextFocusDownId(R.id.chipWeatherOn);
+        chipDockFloat.setNextFocusDownId(R.id.chipWeatherOff);
+
+        chipWeatherOn.setNextFocusUpId(R.id.chipDockBand);
+        chipWeatherOff.setNextFocusUpId(R.id.chipDockFloat);
+        chipWeatherOn.setNextFocusLeftId(R.id.chipWeatherOn);
+        chipWeatherOn.setNextFocusRightId(R.id.chipWeatherOff);
+        chipWeatherOff.setNextFocusLeftId(R.id.chipWeatherOn);
+        chipWeatherOff.setNextFocusRightId(R.id.chipWeatherOff);
+        chipWeatherOn.setNextFocusDownId(R.id.btnDreamPick);
+        chipWeatherOff.setNextFocusDownId(R.id.btnDreamReset);
+
+        dreamPick.setNextFocusUpId(R.id.chipWeatherOn);
+        dreamReset.setNextFocusUpId(R.id.chipWeatherOff);
+        dreamPick.setNextFocusLeftId(R.id.btnDreamPick);
+        dreamPick.setNextFocusRightId(R.id.btnDreamReset);
+        dreamReset.setNextFocusLeftId(R.id.btnDreamPick);
+        dreamReset.setNextFocusRightId(R.id.btnDreamReset);
         dreamPick.setNextFocusDownId(R.id.btnNone);
-        dreamReset.setNextFocusDownId(R.id.btnNone);
+        dreamReset.setNextFocusDownId(R.id.btnScan);
+
         btnNone.setNextFocusUpId(R.id.btnDreamPick);
         btnScan.setNextFocusUpId(R.id.btnDreamPick);
-        btnPick.setNextFocusUpId(R.id.btnDreamPick);
+        btnPick.setNextFocusUpId(R.id.btnDreamReset);
+        btnNone.setNextFocusLeftId(R.id.btnNone);
+        btnNone.setNextFocusRightId(R.id.btnScan);
+        btnScan.setNextFocusLeftId(R.id.btnNone);
+        btnScan.setNextFocusRightId(R.id.btnPick);
+        btnPick.setNextFocusLeftId(R.id.btnScan);
+        btnPick.setNextFocusRightId(R.id.btnPick);
         btnNone.setNextFocusDownId(R.id.settingsGrid);
         btnScan.setNextFocusDownId(R.id.settingsGrid);
         btnPick.setNextFocusDownId(R.id.settingsGrid);
+        settingsGrid.setNextFocusUpId(R.id.btnNone);
 
         btnNone.setOnClickListener(v -> clear());
         btnScan.setOnClickListener(v -> {
@@ -246,17 +283,14 @@ public class PersonalizeActivity extends Activity {
         }
         scan();
 
-        if (MODE_FAVORITES.equals(mode)) {
-            loadFavorites(true);
-        } else {
-            restoreRemote(true);
+        boolean openThemesDirectly = getIntent().getBooleanExtra(EXTRA_FOCUS_THEMES, false);
+        if (openThemesDirectly) {
+            setSettingsOpen(true);
         }
-
-        // Opened from the home screen's "Themes" button: land on the theme cards.
-        if (getIntent().getBooleanExtra(EXTRA_FOCUS_THEMES, false)) {
-            getWindow().getDecorView().postDelayed(() -> {
-                if (!isFinishing() && !settingsOpen) setSettingsOpen(true);
-            }, 200);
+        if (MODE_FAVORITES.equals(mode)) {
+            loadFavorites(!openThemesDirectly);
+        } else {
+            restoreRemote(!openThemesDirectly);
         }
     }
 
@@ -278,7 +312,12 @@ public class PersonalizeActivity extends Activity {
         pendingThemeId = null;
         pendingWallpaperPos = -1;
         if (pendingTheme != null) {
-            themeRail.post(() -> focusThemeCard(pendingTheme));
+            focusThemeCard(pendingTheme);
+        } else if (settingsOpen) {
+            View current = getCurrentFocus();
+            if (current == null || current == btnSettings) {
+                focusThemeCard(Prefs.theme(this));
+            }
         } else if (pendingPos >= 0) {
             grid.post(() -> focusGridItem(pendingPos));
         }
@@ -334,7 +373,7 @@ public class PersonalizeActivity extends Activity {
         }
         for (int id : new int[]{R.id.btnNone, R.id.btnScan, R.id.btnPick, R.id.btnDreamPick,
                 R.id.btnDreamReset, R.id.chipDockBand, R.id.chipDockFloat, R.id.chipWeatherOn, R.id.chipWeatherOff, R.id.btnSettings,
-                R.id.btnSearch, R.id.btnPrev, R.id.btnNext}) {
+                R.id.btnSearch, R.id.btnFilter, R.id.btnPrev, R.id.btnNext}) {
             View v = findViewById(id);
             if (v != null) ThemeKit.applyPill(v, theme);
         }
@@ -346,6 +385,7 @@ public class PersonalizeActivity extends Activity {
         updateDockChips();
         updateWeatherChips();
         updateChipStyles();
+        updateActiveSearchChip();
         buildThemeRail();
     }
 
@@ -353,19 +393,90 @@ public class PersonalizeActivity extends Activity {
         settingsOpen = open;
         catalogPanel.setVisibility(open ? View.GONE : View.VISIBLE);
         settingsPanel.setVisibility(open ? View.VISIBLE : View.GONE);
+        btnSearch.setVisibility(open ? View.GONE : View.VISIBLE);
+        btnFilter.setVisibility(open ? View.GONE : View.VISIBLE);
+        btnSearch.setFocusable(!open);
+        btnFilter.setFocusable(!open);
+        updateActiveSearchChip();
         btnSettings.setImageResource(open ? R.drawable.ic_image : R.drawable.ic_settings);
         btnSettings.setContentDescription(getString(open ? R.string.personalize_wallpapers : R.string.settings));
         if (open) {
+            btnSettings.setNextFocusLeftId(R.id.btnSettings);
+            btnSettings.setNextFocusRightId(R.id.btnSettings);
             if (MODE_LOCAL.equals(mode)) mode = MODE_REMOTE;
             settingsStatus.setText(localEmpty ? getString(R.string.wallpaper_empty) : "");
             if (themeRail.getChildCount() > 0) {
-                focusThemeCard(Prefs.theme(this));
+                String targetTheme = resolveInitialThemeFocusId(pendingThemeId, Prefs.theme(this));
+                View targetCard = findThemeCardView(targetTheme);
+                if (targetCard != null) btnSettings.setNextFocusDownId(targetCard.getId());
+                focusThemeCard(targetTheme);
             } else {
+                btnSettings.setNextFocusDownId(R.id.chipDockBand);
                 chipDockBand.requestFocus();
             }
         } else {
+            btnSettings.setNextFocusLeftId(R.id.btnFilter);
+            btnSettings.setNextFocusRightId(R.id.btnSettings);
+            if (catRow.getChildCount() > 0) {
+                btnSettings.setNextFocusDownId(catRow.getChildAt(0).getId());
+            }
             if (grid.getChildCount() > 0) focusGridItem(0);
             else if (catRow.getChildCount() > 0) catRow.getChildAt(0).requestFocus();
+        }
+    }
+
+    static String resolveInitialThemeFocusId(String pendingThemeId, String activeThemeId) {
+        if (pendingThemeId != null && !pendingThemeId.trim().isEmpty()) {
+            return LauncherTheme.byId(pendingThemeId.trim()).id;
+        }
+        return LauncherTheme.byId(activeThemeId).id;
+    }
+
+    static boolean shouldApplySearchQuery(String newRawQuery, String currentQuery, String loadedQuery) {
+        String normalized = newRawQuery == null ? "" : newRawQuery.trim();
+        String current = currentQuery == null ? "" : currentQuery.trim();
+        String loaded = loadedQuery == null ? "" : loadedQuery.trim();
+        return !normalized.equals(current) || !normalized.equals(loaded);
+    }
+
+    private void updateActiveSearchChip() {
+        if (chipActiveSearch != null) {
+            boolean show = !settingsOpen && query != null && !query.isEmpty();
+            chipActiveSearch.setVisibility(show ? View.VISIBLE : View.GONE);
+            chipActiveSearch.setFocusable(show);
+            if (show) {
+                chipActiveSearch.setText(getString(R.string.search_active_chip, query));
+                ThemeKit.applySelectableChip(chipActiveSearch, theme, true);
+                chipActiveSearch.setNextFocusRightId(R.id.btnSearch);
+                chipActiveSearch.setNextFocusLeftId(R.id.chipActiveSearch);
+                btnSearch.setNextFocusLeftId(R.id.chipActiveSearch);
+                if (catRow.getChildCount() > 0) {
+                    chipActiveSearch.setNextFocusDownId(catRow.getChildAt(0).getId());
+                }
+            } else {
+                btnSearch.setNextFocusLeftId(R.id.btnSearch);
+            }
+        }
+        boolean filterActive = !RemoteRepository.QUALITY_ALL.equalsIgnoreCase(selectedQuality)
+                || !RemoteRepository.PROVIDER_ALL.equalsIgnoreCase(selectedProvider)
+                || !RemoteRepository.SORT_RELEVANCE.equalsIgnoreCase(selectedSort);
+        if (btnFilter != null) {
+            btnFilter.setBackground(filterActive
+                    ? ThemeKit.chipSelected(this, theme)
+                    : ThemeKit.pillBackground(this, theme));
+            btnFilter.setImageTintList(filterActive
+                    ? ThemeKit.chipSelectedTextColors(theme)
+                    : ThemeKit.pillTextColors(theme));
+        }
+    }
+
+    private void clearActiveSearch() {
+        if (query.isEmpty()) return;
+        applyQuery("");
+        if (grid.getChildCount() > 0) {
+            focusGridItem(0);
+        } else {
+            restoreSearchFocus();
         }
     }
 
@@ -397,17 +508,21 @@ public class PersonalizeActivity extends Activity {
     }
 
     private void applyChipSelected(TextView v, boolean selected) {
-        v.setBackground(selected
-                ? ThemeKit.chipSelected(this, theme)
-                : ThemeKit.pillBackground(this, theme));
-        v.setTextColor(selected ? theme.accent : theme.pillText);
+        ThemeKit.applySelectableChip(v, theme, selected);
     }
 
     private void buildThemeRail() {
+        View prevFocus = getCurrentFocus();
+        String focusedThemeTag = (prevFocus != null && prevFocus.getTag() instanceof String)
+                ? (String) prevFocus.getTag() : null;
         themeRail.removeAllViews();
         boolean band = Prefs.DOCK_BAND.equals(Prefs.dockStyle(this));
         String active = Prefs.theme(this);
-        for (LauncherTheme t : LauncherTheme.all()) {
+        final int radiusPx = getResources().getDimensionPixelSize(R.dimen.tile_radius);
+        List<LauncherTheme> allThemes = LauncherTheme.all();
+        View[] cards = new View[allThemes.size()];
+        for (int i = 0; i < allThemes.size(); i++) {
+            LauncherTheme t = allThemes.get(i);
             View item = getLayoutInflater().inflate(R.layout.item_theme, themeRail, false);
             ThemeCardView mock = item.findViewById(R.id.themeMock);
             mock.setTheme(t, band);
@@ -417,21 +532,45 @@ public class PersonalizeActivity extends Activity {
             ImageView badge = item.findViewById(R.id.themeBadge);
             badge.setVisibility(t.id.equals(active) ? View.VISIBLE : View.GONE);
             View card = item.findViewById(R.id.themeCard);
-            card.setBackground(ThemeKit.cardBackground(this, theme));
+            card.setId(View.generateViewId());
+            ThemeKit.applyCard(card, theme, radiusPx);
             card.setNextFocusDownId(R.id.chipDockBand);
             card.setNextFocusUpId(R.id.btnSettings);
             card.setTag(t.id);
             card.setOnClickListener(v -> openThemePreview(t.id));
             card.setOnFocusChangeListener((view, focused) -> {
-                float s = focused ? 1.04f : 1.0f;
+                float s = focused ? 1.045f : 1.0f;
                 view.animate().scaleX(s).scaleY(s)
                         .setDuration(focused ? 130 : 110)
                         .setInterpolator(new DecelerateInterpolator(1.6f)).start();
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (themeRail.getChildCount() > 0) lp.setMarginStart(dp(12));
+            if (themeRail.getChildCount() > 0) lp.setMarginStart(dp(8));
             themeRail.addView(item, lp);
+            cards[i] = card;
+        }
+        for (int i = 0; i < cards.length; i++) {
+            View c = cards[i];
+            c.setNextFocusLeftId(i > 0 ? cards[i - 1].getId() : c.getId());
+            c.setNextFocusRightId(i < cards.length - 1 ? cards[i + 1].getId() : c.getId());
+        }
+        if (cards.length > 0) {
+            int activeCardId = cards[0].getId();
+            for (View c : cards) {
+                if (active.equals(c.getTag())) {
+                    activeCardId = c.getId();
+                    break;
+                }
+            }
+            chipDockBand.setNextFocusUpId(activeCardId);
+            chipDockFloat.setNextFocusUpId(activeCardId);
+            if (settingsOpen) {
+                btnSettings.setNextFocusDownId(activeCardId);
+                if (focusedThemeTag != null) {
+                    focusThemeCard(focusedThemeTag);
+                }
+            }
         }
     }
 
@@ -522,23 +661,40 @@ public class PersonalizeActivity extends Activity {
         });
     }
 
-    private void focusThemeCard(String themeId) {
+    private View findThemeCardView(String themeId) {
+        String target = resolveInitialThemeFocusId(themeId, Prefs.theme(this));
+        View fallback = null;
+        for (int i = 0; i < themeRail.getChildCount(); i++) {
+            View card = themeRail.getChildAt(i).findViewById(R.id.themeCard);
+            if (card == null) continue;
+            if (fallback == null) fallback = card;
+            if (target.equals(card.getTag())) return card;
+        }
+        return fallback;
+    }
+
+    private void focusThemeCard(final String themeId) {
         if (tryFocusThemeCard(themeId)) return;
         themeRail.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
                 themeRail.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                if (!tryFocusThemeCard(themeId)) themeRail.postDelayed(() -> tryFocusThemeCard(themeId), 250);
+                if (!tryFocusThemeCard(themeId)) {
+                    themeRail.postDelayed(() -> tryFocusThemeCard(themeId), 80);
+                }
             }
         });
+        themeRail.post(() -> tryFocusThemeCard(themeId));
     }
 
     private boolean tryFocusThemeCard(String themeId) {
-        for (int i = 0; i < themeRail.getChildCount(); i++) {
-            View card = themeRail.getChildAt(i).findViewById(R.id.themeCard);
-            if (card != null && themeId.equals(card.getTag())) return card.requestFocus();
-        }
-        return false;
+        if (!settingsOpen || settingsPanel.getVisibility() != View.VISIBLE) return false;
+        View card = findThemeCardView(themeId);
+        if (card == null) return false;
+        chipDockBand.setNextFocusUpId(card.getId());
+        chipDockFloat.setNextFocusUpId(card.getId());
+        btnSettings.setNextFocusDownId(card.getId());
+        return card.requestFocus();
     }
 
     private void selectChip(String tag) {
@@ -594,177 +750,263 @@ public class PersonalizeActivity extends Activity {
 
 
     private void openFilterDialog() {
-        String[] options = new String[]{
-                getString(R.string.filter_quality) + ": " + qualityLabel(selectedQuality),
-                getString(R.string.filter_provider) + ": " + providerLabel(selectedProvider),
-                getString(R.string.filter_sort) + ": " + sortLabel(selectedSort),
-                getString(R.string.filter_reset)
-        };
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        int padH = dp(24);
+        int padV = dp(20);
+        panel.setPadding(padH, padV, padH, padV);
+        panel.setBackground(ThemeKit.dialogSurface(this, theme));
 
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.filter_title)
-                .setItems(options, (d, which) -> {
-                    if (which == 0) {
-                        showQualityDialog();
-                    } else if (which == 1) {
-                        showProviderDialog();
-                    } else if (which == 2) {
-                        showSortDialog();
-                    } else if (which == 3) {
-                        selectedQuality = RemoteRepository.QUALITY_ALL;
-                        selectedProvider = RemoteRepository.PROVIDER_ALL;
-                        selectedSort = RemoteRepository.SORT_RELEVANCE;
-                        Prefs.setPanelQuality(this, selectedQuality);
-                        Prefs.setPanelProvider(this, selectedProvider);
-                        Prefs.setPanelSort(this, selectedSort);
-                        remotePage = 1;
-                        loadRemote(true);
-                    }
-                })
-                .setOnDismissListener(d -> {
-                    btnFilter.post(() -> {
-                        if (!btnFilter.hasFocus() && !isFinishing() && !isDestroyed()) {
-                            btnFilter.requestFocus();
-                        }
-                    });
-                })
-                .show();
-    }
+        TextView title = new TextView(this);
+        title.setText(R.string.filter_title);
+        title.setTextColor(theme.textPrimary);
+        title.setTextSize(20f);
+        title.setTypeface(getResources().getFont(R.font.outfit));
+        panel.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-    private void showQualityDialog() {
-        String[] items = new String[]{
-                getString(R.string.filter_quality_all),
-                getString(R.string.filter_quality_2k),
-                getString(R.string.filter_quality_4k)
-        };
-        final String[] keys = new String[]{
-                RemoteRepository.QUALITY_ALL,
-                RemoteRepository.QUALITY_2K,
-                RemoteRepository.QUALITY_4K
-        };
-        int current = 0;
-        for (int i = 0; i < keys.length; i++) {
-            if (keys[i].equalsIgnoreCase(selectedQuality)) { current = i; break; }
-        }
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.filter_quality)
-                .setSingleChoiceItems(items, current, (d, which) -> {
-                    selectedQuality = keys[which];
+        addFilterChipRow(panel, getString(R.string.filter_quality),
+                new String[]{getString(R.string.filter_quality_all), getString(R.string.filter_quality_2k), getString(R.string.filter_quality_4k)},
+                new String[]{RemoteRepository.QUALITY_ALL, RemoteRepository.QUALITY_2K, RemoteRepository.QUALITY_4K},
+                selectedQuality,
+                val -> {
+                    selectedQuality = val;
                     Prefs.setPanelQuality(this, selectedQuality);
-                    d.dismiss();
+                    updateActiveSearchChip();
                     remotePage = 1;
-                    loadRemote(true);
-                })
-                .show();
-    }
+                    loadRemote(false);
+                });
 
-    private void showProviderDialog() {
-        String[] items = new String[]{
-                getString(R.string.filter_provider_all),
-                getString(R.string.filter_provider_wallhaven),
-                getString(R.string.filter_provider_commons)
-        };
-        final String[] keys = new String[]{
-                RemoteRepository.PROVIDER_ALL,
-                RemoteRepository.PROVIDER_WALLHAVEN,
-                RemoteRepository.PROVIDER_COMMONS
-        };
-        int current = 0;
-        for (int i = 0; i < keys.length; i++) {
-            if (keys[i].equalsIgnoreCase(selectedProvider)) { current = i; break; }
-        }
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.filter_provider)
-                .setSingleChoiceItems(items, current, (d, which) -> {
-                    selectedProvider = keys[which];
+        addFilterChipRow(panel, getString(R.string.filter_provider),
+                new String[]{getString(R.string.filter_provider_all), getString(R.string.filter_provider_wallhaven), getString(R.string.filter_provider_commons)},
+                new String[]{RemoteRepository.PROVIDER_ALL, RemoteRepository.PROVIDER_WALLHAVEN, RemoteRepository.PROVIDER_COMMONS},
+                selectedProvider,
+                val -> {
+                    selectedProvider = val;
                     Prefs.setPanelProvider(this, selectedProvider);
-                    d.dismiss();
+                    updateActiveSearchChip();
                     remotePage = 1;
-                    loadRemote(true);
-                })
-                .show();
-    }
+                    loadRemote(false);
+                });
 
-    private void showSortDialog() {
-        String[] items = new String[]{
-                getString(R.string.filter_sort_relevance),
-                getString(R.string.filter_sort_date),
-                getString(R.string.filter_sort_top)
-        };
-        final String[] keys = new String[]{
-                RemoteRepository.SORT_RELEVANCE,
-                RemoteRepository.SORT_DATE,
-                RemoteRepository.SORT_TOP
-        };
-        int current = 0;
-        for (int i = 0; i < keys.length; i++) {
-            if (keys[i].equalsIgnoreCase(selectedSort)) { current = i; break; }
-        }
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.filter_sort)
-                .setSingleChoiceItems(items, current, (d, which) -> {
-                    selectedSort = keys[which];
+        addFilterChipRow(panel, getString(R.string.filter_sort),
+                new String[]{getString(R.string.filter_sort_relevance), getString(R.string.filter_sort_date), getString(R.string.filter_sort_top)},
+                new String[]{RemoteRepository.SORT_RELEVANCE, RemoteRepository.SORT_DATE, RemoteRepository.SORT_TOP},
+                selectedSort,
+                val -> {
+                    selectedSort = val;
                     Prefs.setPanelSort(this, selectedSort);
-                    d.dismiss();
+                    updateActiveSearchChip();
                     remotePage = 1;
-                    loadRemote(true);
-                })
-                .show();
+                    loadRemote(false);
+                });
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        actionsLp.topMargin = dp(18);
+
+        TextView btnReset = new TextView(new ContextThemeWrapper(this, R.style.TopButton));
+        btnReset.setId(View.generateViewId());
+        btnReset.setText(R.string.filter_reset);
+        ThemeKit.applyPill(btnReset, theme);
+        btnReset.setOnClickListener(v -> {
+            selectedQuality = RemoteRepository.QUALITY_ALL;
+            selectedProvider = RemoteRepository.PROVIDER_ALL;
+            selectedSort = RemoteRepository.SORT_RELEVANCE;
+            Prefs.setPanelQuality(this, selectedQuality);
+            Prefs.setPanelProvider(this, selectedProvider);
+            Prefs.setPanelSort(this, selectedSort);
+            updateActiveSearchChip();
+            dialog.dismiss();
+            remotePage = 1;
+            loadRemote(true);
+        });
+
+        TextView btnClose = new TextView(new ContextThemeWrapper(this, R.style.TopButton));
+        btnClose.setId(View.generateViewId());
+        btnClose.setText(R.string.search_done);
+        ThemeKit.applyPill(btnClose, theme);
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        btnReset.setNextFocusRightId(btnClose.getId());
+        btnClose.setNextFocusLeftId(btnReset.getId());
+
+        int pillH = getResources().getDimensionPixelSize(R.dimen.pill_height);
+        LinearLayout.LayoutParams resetLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, pillH);
+        LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, pillH);
+        closeLp.setMarginStart(dp(10));
+        actions.addView(btnReset, resetLp);
+        actions.addView(btnClose, closeLp);
+        panel.addView(actions, actionsLp);
+
+        dialog.setContentView(panel);
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            w.setLayout(dp(640), ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.setGravity(Gravity.CENTER);
+        }
+        dialog.setOnDismissListener(d -> {
+            btnFilter.post(() -> {
+                if (!btnFilter.hasFocus() && !isFinishing() && !isDestroyed()) {
+                    btnFilter.requestFocus();
+                }
+            });
+        });
+        dialog.show();
     }
 
-    private String qualityLabel(String qual) {
-        if (RemoteRepository.QUALITY_4K.equalsIgnoreCase(qual)) return getString(R.string.filter_quality_4k);
-        if (RemoteRepository.QUALITY_2K.equalsIgnoreCase(qual)) return getString(R.string.filter_quality_2k);
-        return getString(R.string.filter_quality_all);
+    private interface FilterSelectListener {
+        void onSelect(String value);
     }
 
-    private String providerLabel(String prov) {
-        if (RemoteRepository.PROVIDER_WALLHAVEN.equalsIgnoreCase(prov)) return getString(R.string.filter_provider_wallhaven);
-        if (RemoteRepository.PROVIDER_COMMONS.equalsIgnoreCase(prov)) return getString(R.string.filter_provider_commons);
-        return getString(R.string.filter_provider_all);
+    private void addFilterChipRow(LinearLayout parent, String labelText, String[] labels,
+                                  String[] values, String currentVal, FilterSelectListener listener) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.topMargin = dp(12);
+
+        TextView label = new TextView(new ContextThemeWrapper(this, R.style.SectionLabel));
+        label.setText(labelText);
+        label.setTextColor(theme.textDim);
+        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(
+                dp(130), ViewGroup.LayoutParams.WRAP_CONTENT);
+        row.addView(label, labelLp);
+
+        final TextView[] chips = new TextView[labels.length];
+        int pillH = getResources().getDimensionPixelSize(R.dimen.pill_height);
+        for (int i = 0; i < labels.length; i++) {
+            final int idx = i;
+            TextView chip = new TextView(new ContextThemeWrapper(this, R.style.TopButton));
+            chip.setId(View.generateViewId());
+            chip.setText(labels[i]);
+            boolean isSelected = values[i].equalsIgnoreCase(currentVal);
+            ThemeKit.applySelectableChip(chip, theme, isSelected);
+            chip.setOnClickListener(v -> {
+                for (int j = 0; j < chips.length; j++) {
+                    ThemeKit.applySelectableChip(chips[j], theme, j == idx);
+                }
+                listener.onSelect(values[idx]);
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, pillH);
+            if (i > 0) lp.setMarginStart(dp(8));
+            row.addView(chip, lp);
+            chips[i] = chip;
+        }
+        for (int i = 0; i < chips.length; i++) {
+            chips[i].setNextFocusLeftId(i > 0 ? chips[i - 1].getId() : chips[i].getId());
+            chips[i].setNextFocusRightId(i < chips.length - 1 ? chips[i + 1].getId() : chips[i].getId());
+        }
+        parent.addView(row, rowLp);
     }
 
-    private String sortLabel(String sort) {
-        if (RemoteRepository.SORT_DATE.equalsIgnoreCase(sort)) return getString(R.string.filter_sort_date);
-        if (RemoteRepository.SORT_TOP.equalsIgnoreCase(sort)) return getString(R.string.filter_sort_top);
-        return getString(R.string.filter_sort_relevance);
-    }
-
-    // ---- Search dialog ---------------------------------------------------------------------------
+    // ---- Search dialog (top-anchored, IME-safe, high-contrast) -----------------------------------
 
     private void openSearchDialog() {
-        FrameLayout wrap = new FrameLayout(this);
-        int padH = dp(24);
-        int padV = dp(16);
-        wrap.setPadding(padH, padV, padH, padV);
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-        EditText input = new EditText(new ContextThemeWrapper(this, R.style.TopButton));
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        int padH = dp(24);
+        int padV = dp(18);
+        panel.setPadding(padH, padV, padH, padV);
+        panel.setBackground(ThemeKit.dialogSurface(this, theme));
+
+        TextView title = new TextView(this);
+        title.setText(R.string.search_title);
+        title.setTextColor(theme.textPrimary);
+        title.setTextSize(18f);
+        title.setTypeface(getResources().getFont(R.font.outfit));
+        panel.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        final EditText input = new EditText(this);
+        input.setId(View.generateViewId());
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        input.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        input.setImeOptions(EditorInfo.IME_ACTION_SEARCH | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         input.setSingleLine(true);
+        input.setTextSize(16f);
+        input.setTypeface(getResources().getFont(R.font.outfit));
         input.setHint(R.string.search_hint);
-        input.setHintTextColor(theme.textDim);
+        ThemeKit.applyTextField(input, theme);
         input.setText(query);
         if (!query.isEmpty()) input.setSelection(query.length());
-        input.setTextColor(theme.textPrimary);
-        input.setBackground(ThemeKit.pillBackground(this, theme));
-        wrap.addView(input, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.search_title)
-                .setView(wrap)
-                .setPositiveButton(R.string.search_done, (d, w) -> {
-                    applyQuery(input.getText().toString());
-                    restoreSearchFocus();
-                })
-                .setNeutralButton(R.string.search_clear, (d, w) -> {
-                    input.setText("");
-                    applyQuery("");
-                    restoreSearchFocus();
-                })
-                .setNegativeButton(R.string.search_cancel, (d, w) -> restoreSearchFocus())
-                .create();
+        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        inputLp.topMargin = dp(10);
+        panel.addView(input, inputLp);
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        actionsLp.topMargin = dp(12);
+
+        final TextView btnClear = new TextView(new ContextThemeWrapper(this, R.style.TopButton));
+        btnClear.setId(View.generateViewId());
+        btnClear.setText(R.string.search_clear);
+        ThemeKit.applyPill(btnClear, theme);
+
+        final TextView btnCancel = new TextView(new ContextThemeWrapper(this, R.style.TopButton));
+        btnCancel.setId(View.generateViewId());
+        btnCancel.setText(R.string.search_cancel);
+        ThemeKit.applyPill(btnCancel, theme);
+
+        final TextView btnDone = new TextView(new ContextThemeWrapper(this, R.style.TopButton));
+        btnDone.setId(View.generateViewId());
+        btnDone.setText(R.string.search_done);
+        ThemeKit.applySelectableChip(btnDone, theme, true);
+
+        int pillH = getResources().getDimensionPixelSize(R.dimen.pill_height);
+        LinearLayout.LayoutParams clearLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, pillH);
+        LinearLayout.LayoutParams cancelLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, pillH);
+        cancelLp.setMarginStart(dp(10));
+        LinearLayout.LayoutParams doneLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, pillH);
+        doneLp.setMarginStart(dp(10));
+
+        actions.addView(btnClear, clearLp);
+        actions.addView(btnCancel, cancelLp);
+        actions.addView(btnDone, doneLp);
+        panel.addView(actions, actionsLp);
+
+        input.setNextFocusDownId(btnDone.getId());
+        btnClear.setNextFocusUpId(input.getId());
+        btnCancel.setNextFocusUpId(input.getId());
+        btnDone.setNextFocusUpId(input.getId());
+        btnClear.setNextFocusLeftId(btnClear.getId());
+        btnClear.setNextFocusRightId(btnCancel.getId());
+        btnCancel.setNextFocusLeftId(btnClear.getId());
+        btnCancel.setNextFocusRightId(btnDone.getId());
+        btnDone.setNextFocusLeftId(btnCancel.getId());
+        btnDone.setNextFocusRightId(btnDone.getId());
+
+        btnDone.setOnClickListener(v -> {
+            commitQueryImmediate(input.getText().toString());
+            dialog.dismiss();
+            focusAfterSearchCommit();
+        });
+        btnClear.setOnClickListener(v -> {
+            input.setText("");
+            commitQueryImmediate("");
+            dialog.dismiss();
+            restoreSearchFocus();
+        });
+        btnCancel.setOnClickListener(v -> {
+            dialog.dismiss();
+            restoreSearchFocus();
+        });
 
         input.addTextChangedListener(new TextWatcher() {
             @Override
@@ -781,30 +1023,76 @@ public class PersonalizeActivity extends Activity {
             }
         });
 
-        input.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
-            if (keyCode != KeyEvent.KEYCODE_DPAD_DOWN && keyCode != KeyEvent.KEYCODE_DPAD_UP) {
-                return false;
-            }
-            View target = dialog.getButton(keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-                    ? AlertDialog.BUTTON_POSITIVE : AlertDialog.BUTTON_NEUTRAL);
-            return target != null && target.requestFocus();
-        });
-
         input.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH
+                    || actionId == EditorInfo.IME_ACTION_DONE
+                    || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                commitQueryImmediate(input.getText().toString());
                 dialog.dismiss();
-                restoreSearchFocus();
+                focusAfterSearchCommit();
                 return true;
             }
             return false;
         });
 
+        dialog.setContentView(panel);
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams wlp = w.getAttributes();
+            wlp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            wlp.y = dp(28);
+            wlp.width = dp(660);
+            wlp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            w.setAttributes(wlp);
+            w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+                    | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
+        }
         dialog.show();
+        input.requestFocus();
+    }
+
+    private void commitQueryImmediate(String rawQuery) {
+        String normalized = rawQuery == null ? "" : rawQuery.trim();
+        main.removeCallbacks(remoteSearch);
+        boolean needsFetch = shouldApplySearchQuery(normalized, query, loadedQuery);
+        query = normalized;
+        updateActiveSearchChip();
+        if (!needsFetch) {
+            updateChipStyles();
+            return;
+        }
+        if (MODE_REMOTE.equals(mode)) {
+            updateChipStyles();
+            loadRemote(false);
+        } else if (MODE_FAVORITES.equals(mode)) {
+            updateChipStyles();
+            loadFavorites(false);
+        } else if (MODE_CATALOG.equals(mode)) {
+            showCatalog();
+        } else {
+            updateChipStyles();
+        }
+    }
+
+    private void focusAfterSearchCommit() {
+        grid.post(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (catalogAdapter.getItemCount() > 0) {
+                focusGridItem(0);
+            } else if (chipActiveSearch != null && chipActiveSearch.getVisibility() == View.VISIBLE) {
+                chipActiveSearch.requestFocus();
+            } else {
+                restoreSearchFocus();
+            }
+        });
     }
 
     private void applyQuery(String q) {
-        query = q == null ? "" : q.trim();
+        String normalized = q == null ? "" : q.trim();
+        if (normalized.equals(query)) return;
+        query = normalized;
+        updateActiveSearchChip();
         if (MODE_REMOTE.equals(mode)) {
             updateChipStyles();
             main.removeCallbacks(remoteSearch);
@@ -830,6 +1118,7 @@ public class PersonalizeActivity extends Activity {
 
     private void loadFavorites(boolean focusGrid) {
         mode = MODE_FAVORITES;
+        loadedQuery = query;
         status.setText(R.string.remote_loading);
         catalogExec.execute(() -> {
             List<Catalog.Wallpaper> all = WallpaperStore.listFavorites(this);

@@ -1,7 +1,14 @@
 package com.gathin.tvhome;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
 import android.content.SharedPreferences;
+import android.location.LocationManager;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -18,7 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Lightweight client for Open-Meteo weather data with strict 3-hour caching,
+ * Lightweight client for Open-Meteo weather data with strict one-hour caching,
  * persistent offline fallback, and non-blocking background fetching.
  * Complies with Open-Meteo terms (CC BY 4.0).
  */
@@ -33,7 +40,11 @@ public final class WeatherStore {
     private static final String KEY_LAST_CODE = "weather_last_code";
     private static final String KEY_LAST_TIME = "weather_last_time";
 
-    public static final long CACHE_TTL_MS = 3 * 60 * 60 * 1000L; // 3 hours
+    public static final long CACHE_TTL_MS = 60 * 60 * 1000L; // 1 hour
+    private static final long LOCATION_TTL_MS = 12 * 60 * 60 * 1000L;
+    private static final long MAX_FIX_AGE_MS = 24 * 60 * 60 * 1000L;
+    private static final String KEY_LOCATION_TIME = "weather_location_time";
+    private static final String KEY_MANUAL_LOCATION = "weather_manual_location";
     public static final String DEFAULT_CITY = "Bogotá";
     public static final float DEFAULT_LAT = 4.7110f;
     public static final float DEFAULT_LON = -74.0721f;
@@ -62,16 +73,15 @@ public final class WeatherStore {
 
         public int getIconResId() {
             // WMO Weather interpretation codes (WW)
-            // 0, 1: Clear sky, Mainly clear
+            // WMO codes, with separate symbols for partly cloudy and snow.
             if (weatherCode <= 1) return R.drawable.ic_weather_sun;
-            // 2, 3: Partly cloudy, overcast; 45, 48: Fog
-            if (weatherCode <= 3 || weatherCode == 45 || weatherCode == 48) {
-                return R.drawable.ic_weather_cloud;
+            if (weatherCode == 2) return R.drawable.ic_weather_sun_cloud;
+            if (weatherCode == 3 || weatherCode == 45 || weatherCode == 48) return R.drawable.ic_weather_cloud;
+            if ((weatherCode >= 71 && weatherCode <= 77) || weatherCode == 85 || weatherCode == 86) {
+                return R.drawable.ic_weather_snow;
             }
-            // 51..82: Drizzle, rain, showers
-            if (weatherCode < 90) return R.drawable.ic_weather_rain;
-            // 95..99: Thunderstorm
-            return R.drawable.ic_weather_storm;
+            if (weatherCode >= 95) return R.drawable.ic_weather_storm;
+            return R.drawable.ic_weather_rain;
         }
 
         public String getFormatted() {
@@ -87,6 +97,119 @@ public final class WeatherStore {
     private WeatherStore() {
     }
 
+    private static final class LocationTarget {
+        final String city;
+        final float latitude;
+        final float longitude;
+
+        LocationTarget(String city, float latitude, float longitude) {
+            this.city = city;
+            this.latitude = latitude;
+            this.longitude = longitude;
+        }
+    }
+
+    /** Use a recent TV location when Android has one, then fall back to network IP geolocation. */
+    @SuppressLint("MissingPermission")
+    private static LocationTarget resolveLocation(Context context, SharedPreferences p) {
+        String savedCity = p.getString(KEY_CITY, DEFAULT_CITY);
+        float savedLat = p.getFloat(KEY_LAT, DEFAULT_LAT);
+        float savedLon = p.getFloat(KEY_LON, DEFAULT_LON);
+        long now = System.currentTimeMillis();
+        if (p.getBoolean(KEY_MANUAL_LOCATION, false)) return new LocationTarget(savedCity, savedLat, savedLon);
+        long locationTime = p.getLong(KEY_LOCATION_TIME, 0L);
+        if (locationTime > 0L && now - locationTime < LOCATION_TTL_MS) {
+            return new LocationTarget(savedCity, savedLat, savedLon);
+        }
+
+        Location recent = getRecentDeviceLocation(context, now);
+        String localCity = recent == null ? null : reverseGeocodeCity(context, recent);
+        LocationTarget networkTarget = (recent == null || localCity == null) ? fetchIpLocation() : null;
+        if (recent != null) {
+            String city = localCity;
+            if (city == null && networkTarget != null) city = networkTarget.city;
+            if (city == null || city.trim().isEmpty()) city = "Ubicación actual";
+            LocationTarget target = new LocationTarget(city, (float) recent.getLatitude(), (float) recent.getLongitude());
+            saveLocation(p, target, now);
+            return target;
+        }
+        if (networkTarget != null) {
+            saveLocation(p, networkTarget, now);
+            return networkTarget;
+        }
+        return new LocationTarget(savedCity, savedLat, savedLon);
+    }
+
+    @SuppressLint("MissingPermission")
+    private static Location getRecentDeviceLocation(Context context, long now) {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null;
+        LocationManager manager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        if (manager == null) return null;
+        Location best = null;
+        for (String provider : new String[]{LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER,
+                LocationManager.GPS_PROVIDER}) {
+            try {
+                Location candidate = manager.getLastKnownLocation(provider);
+                if (candidate == null) continue;
+                long age = now - candidate.getTime();
+                if (age < -5 * 60 * 1000L || age > MAX_FIX_AGE_MS) continue;
+                if (candidate.hasAccuracy() && candidate.getAccuracy() > 100000f) continue;
+                if (best == null || candidate.getTime() > best.getTime()) best = candidate;
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return best;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static String reverseGeocodeCity(Context context, Location location) {
+        try {
+            if (!Geocoder.isPresent()) return null;
+            Geocoder geocoder = new Geocoder(context, Locale.getDefault());
+            java.util.List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+            if (addresses == null || addresses.isEmpty()) return null;
+            Address address = addresses.get(0);
+            String city = address.getLocality();
+            if (city == null || city.trim().isEmpty()) city = address.getSubAdminArea();
+            if (city == null || city.trim().isEmpty()) city = address.getAdminArea();
+            return city == null || city.trim().isEmpty() ? null : city.trim();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static LocationTarget fetchIpLocation() {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL("https://ipapi.co/json/").openConnection();
+            conn.setConnectTimeout(3500);
+            conn.setReadTimeout(3500);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent", "HarolHomeTV");
+            if (conn.getResponseCode() != 200) return null;
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) body.append(line);
+            }
+            JSONObject json = new JSONObject(body.toString());
+            String city = json.optString("city", "").trim();
+            double latitude = json.optDouble("latitude", Double.NaN);
+            double longitude = json.optDouble("longitude", Double.NaN);
+            if (city.isEmpty() || !Double.isFinite(latitude) || !Double.isFinite(longitude)
+                    || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+            return new LocationTarget(city, (float) latitude, (float) longitude);
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    private static void saveLocation(SharedPreferences p, LocationTarget target, long now) {
+        p.edit().putString(KEY_CITY, target.city).putFloat(KEY_LAT, target.latitude)
+                .putFloat(KEY_LON, target.longitude).putLong(KEY_LOCATION_TIME, now).apply();
+    }
     private static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
@@ -112,6 +235,7 @@ public final class WeatherStore {
                 .putString(KEY_CITY, city)
                 .putFloat(KEY_LAT, lat)
                 .putFloat(KEY_LON, lon)
+                .putBoolean(KEY_MANUAL_LOCATION, true)
                 .putLong(KEY_LAST_TIME, 0L) // Invalidate cache on city change
                 .apply();
     }
@@ -127,7 +251,7 @@ public final class WeatherStore {
     }
 
     /**
-     * Loads weather data. If cached within 3 hours, returns immediately.
+     * Loads weather data. If weather and location data are fresh, returns the cached reading.
      * Otherwise fetches from Open-Meteo in background thread.
      */
     public static void fetch(Context context, boolean force, WeatherCallback cb) {
@@ -141,7 +265,10 @@ public final class WeatherStore {
 
         WeatherData cached = getCached(appCtx);
         long now = System.currentTimeMillis();
-        if (!force && cached.isValid() && (now - cached.timestamp < CACHE_TTL_MS)) {
+        SharedPreferences locationPrefs = prefs(appCtx);
+        boolean locationStale = !locationPrefs.getBoolean(KEY_MANUAL_LOCATION, false)
+                && now - locationPrefs.getLong(KEY_LOCATION_TIME, 0L) >= LOCATION_TTL_MS;
+        if (!force && !locationStale && cached.isValid() && (now - cached.timestamp < CACHE_TTL_MS)) {
             MAIN_HANDLER.post(() -> cb.onWeather(cached));
             return;
         }
@@ -155,9 +282,10 @@ public final class WeatherStore {
 
     public static WeatherData fetchSync(Context context) {
         SharedPreferences p = prefs(context);
-        String city = p.getString(KEY_CITY, DEFAULT_CITY);
-        float lat = p.getFloat(KEY_LAT, DEFAULT_LAT);
-        float lon = p.getFloat(KEY_LON, DEFAULT_LON);
+        LocationTarget target = resolveLocation(context.getApplicationContext(), p);
+        String city = target.city;
+        float lat = target.latitude;
+        float lon = target.longitude;
 
         String urlStr = String.format(Locale.US,
                 "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,weather_code&timezone=auto",
@@ -170,7 +298,7 @@ public final class WeatherStore {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "tv-vibehack-launcher");
+            conn.setRequestProperty("User-Agent", "HarolHomeTV");
 
             int code = conn.getResponseCode();
             if (code == 200) {

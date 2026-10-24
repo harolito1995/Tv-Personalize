@@ -37,3 +37,7 @@ Thumbs.db
 # Keystore files
 *.jks
 *.keystore
+
+# Device-specific artifacts and backups stay local and out of Git
+/artifacts/
+/backups/

@@ -6,13 +6,17 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.ContentObserver;
 import android.content.pm.ApplicationInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ImageDecoder;
 import android.graphics.Outline;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -31,7 +35,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -66,30 +72,53 @@ import java.util.Locale;
 
 /**
  * Home screen: clock, date and weather on top, a "continue watching" shelf, and one row of tiles
- * (Home, favourite apps, All apps) with the quick actions underneath. Everything is reached with the
+ * (favourite apps) with the quick actions underneath. Everything is reached with the
  * D-pad: header, shelf, dock and bottom bar are four rows, and Up/Down move exactly one row.
  */
 public class MainActivity extends Activity {
 
+    private static final String TAG = "MainActivity";
     private static final long MINUTE_MS = 60_000L;
+    /** Give the playback app time to publish its Watch Next update after Home resumes. */
+    private static final long SHELF_RETURN_REFRESH_MS = 2_500L;
+    private static final long WATCH_NEXT_OBSERVER_DEBOUNCE_MS = 450L;
+    private static final int REQ_WATCH_NEXT = 30;
     /** When Home returns to the front: check now, then again once slower apps have finished stopping. */
     private static final long[] AUDIO_GUARD_DELAYS_MS = {0L, 700L, 2000L};
 
     /** Last focused dock index. Static so it survives the activity being destroyed while an app is open. */
     private static int lastDock = 0;
+    private static long lastLaunchTapRealtimeMs = 0L;
+    private static String lastLaunchTarget = "";
+
+    static void markAppLaunchStart(String target, long tapMs, long dispatchMs) {
+        lastLaunchTapRealtimeMs = tapMs;
+        lastLaunchTarget = target != null ? target : "";
+        Log.i("LaunchPerf", "event=dispatch target=" + lastLaunchTarget + " dispatchMs=" + dispatchMs);
+    }
 
     private static final class ShelfCard {
         final View root;
+        final View frame;
         final ImageView image;
+        final View emptyState;
+        final ImageView emptyIcon;
+        final TextView emptyHint;
         final View watermark;
         final ImageView badge;
         final TextView title;
         final TextView subtitle;
         final ProgressBar progress;
+        TopShelfStore.Item item;
 
         ShelfCard(View root) {
             this.root = root;
+            View f = root.findViewById(R.id.cardFrame);
+            frame = f != null ? f : root;
             image = root.findViewById(R.id.cardImage);
+            emptyState = root.findViewById(R.id.cardEmptyState);
+            emptyIcon = root.findViewById(R.id.cardEmptyIcon);
+            emptyHint = root.findViewById(R.id.cardEmptyHint);
             watermark = null;
             badge = root.findViewById(R.id.cardBadge);
             title = root.findViewById(R.id.cardTitle);
@@ -119,17 +148,40 @@ public class MainActivity extends Activity {
     private ImageView weatherIcon;
     private TextView weatherText;
     private TextView btnApps;
-    private TextView btnSearch;
-    private TextView btnPersonalize;
-    private TextView btnThemes;
-    private TextView btnWeather;
+    private View btnSearch;
+    private View btnPersonalize;
+    private View btnThemes;
+    private View btnWeather;
+    private View btnSearchCircle;
+    private View btnPersonalizeCircle;
+    private View btnThemesCircle;
+    private View btnWeatherCircle;
+    private ImageView btnSearchIcon;
+    private ImageView btnPersonalizeIcon;
+    private ImageView btnThemesIcon;
+    private TextView btnSearchLabel;
+    private TextView btnPersonalizeLabel;
+    private TextView btnThemesLabel;
+    private TextView btnWeatherLabel;
+    private ImageView btnWeatherIcon;
+    private View bottomDivider1;
+    private View bottomDivider2;
     private String appliedThemeId;
     private boolean appsDirty = true;
+    private boolean wasStopped;
+    private boolean watchNextObserverRegistered;
+    private final Runnable shelfReturnRefresh = () -> updateTopShelf(true);
+    private final Runnable watchNextObserverRefresh = () -> {
+        Log.d(TAG, "watch-next observer debounced trigger -> updateTopShelf(true)");
+        updateTopShelf(true);
+    };
+    private ContentObserver watchNextObserver;
 
     // Wallpaper layer: a still/animated image or a looping muted video, behind everything.
     private ImageView wallpaper;
     private VideoView wallpaperVideo;
     private View wallpaperDim;
+    private Bitmap wallpaperBase;
     private String currentWallpaper;
     private boolean wallpaperReady;
     private String wallpaperNoticeUri;
@@ -210,6 +262,20 @@ public class MainActivity extends Activity {
         btnPersonalize = findViewById(R.id.btnPersonalize);
         btnThemes = findViewById(R.id.btnThemes);
         btnWeather = findViewById(R.id.btnWeather);
+        btnSearchCircle = findViewById(R.id.btnSearchCircle);
+        btnPersonalizeCircle = findViewById(R.id.btnPersonalizeCircle);
+        btnThemesCircle = findViewById(R.id.btnThemesCircle);
+        btnWeatherCircle = findViewById(R.id.btnWeatherCircle);
+        btnSearchIcon = findViewById(R.id.btnSearchIcon);
+        btnPersonalizeIcon = findViewById(R.id.btnPersonalizeIcon);
+        btnThemesIcon = findViewById(R.id.btnThemesIcon);
+        btnSearchLabel = findViewById(R.id.btnSearchLabel);
+        btnPersonalizeLabel = findViewById(R.id.btnPersonalizeLabel);
+        btnThemesLabel = findViewById(R.id.btnThemesLabel);
+        btnWeatherLabel = findViewById(R.id.btnWeatherLabel);
+        btnWeatherIcon = findViewById(R.id.btnWeatherIcon);
+        bottomDivider1 = findViewById(R.id.bottomDivider1);
+        bottomDivider2 = findViewById(R.id.bottomDivider2);
 
         // ---- wallpaper layer ----
         wallpaper = findViewById(R.id.wallpaper);
@@ -245,9 +311,9 @@ public class MainActivity extends Activity {
         for (int slot = 0; slot < shelf.length; slot++) {
             View card = getLayoutInflater().inflate(R.layout.item_continue_card, shelfRow, false);
             card.setId(View.generateViewId());
-            roundClip(card, 14f * density);
             shelfRow.addView(card);
             shelf[slot] = new ShelfCard(card);
+            roundClip(shelf[slot].frame, getResources().getDimension(R.dimen.top_shelf_card_radius));
             setupShelfCard(shelf[slot], slot);
         }
 
@@ -256,11 +322,6 @@ public class MainActivity extends Activity {
             @Override
             public void onTileFocused(int index) {
                 if (index >= 0) lastDock = index;
-            }
-
-            @Override
-            public void onAllApps() {
-                startActivity(new Intent(MainActivity.this, AllAppsActivity.class));
             }
 
             @Override
@@ -280,6 +341,10 @@ public class MainActivity extends Activity {
                 .putExtra(PersonalizeActivity.EXTRA_FOCUS_THEMES, true)));
         btnWeather.setOnClickListener(v -> showWeather());
         wireStaticNavigation();
+
+        if (!TopShelfStore.hasWatchNextPermission(this)) {
+            requestPermissions(new String[]{TopShelfStore.WATCH_NEXT_PERMISSION}, REQ_WATCH_NEXT);
+        }
 
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         if (cm != null) cm.registerDefaultNetworkCallback(networkCallback);
@@ -307,9 +372,58 @@ public class MainActivity extends Activity {
 
     // ---- lifecycle -------------------------------------------------------------------------------
 
+    private void registerWatchNextObserverIfPermitted() {
+        if (watchNextObserverRegistered || !TopShelfStore.hasWatchNextPermission(this)) return;
+        try {
+            if (watchNextObserver == null) {
+                watchNextObserver = new ContentObserver(handler) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        onChange(selfChange, null);
+                    }
+
+                    @Override
+                    public void onChange(boolean selfChange, Uri uri) {
+                        handler.removeCallbacks(watchNextObserverRefresh);
+                        handler.postDelayed(watchNextObserverRefresh, WATCH_NEXT_OBSERVER_DEBOUNCE_MS);
+                    }
+                };
+            }
+            getContentResolver().registerContentObserver(
+                    Uri.parse(TopShelfStore.WATCH_NEXT_URI_STRING), true, watchNextObserver);
+            watchNextObserverRegistered = true;
+            Log.d(TAG, "watch-next ContentObserver registered");
+        } catch (Exception e) {
+            watchNextObserverRegistered = false;
+            Log.w(TAG, "watch-next ContentObserver registration failed: " + e.getMessage());
+        }
+    }
+
+    private void unregisterWatchNextObserver() {
+        handler.removeCallbacks(watchNextObserverRefresh);
+        if (!watchNextObserverRegistered || watchNextObserver == null) return;
+        try {
+            getContentResolver().unregisterContentObserver(watchNextObserver);
+        } catch (Exception ignored) {
+        }
+        watchNextObserverRegistered = false;
+        Log.d(TAG, "watch-next ContentObserver unregistered");
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_WATCH_NEXT) {
+            registerWatchNextObserverIfPermitted();
+            updateTopShelf(true);
+        }
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
+        registerWatchNextObserverIfPermitted();
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
         filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
@@ -332,6 +446,13 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onStop() {
+        if (lastLaunchTapRealtimeMs > 0L) {
+            long stopDelta = SystemClock.elapsedRealtime() - lastLaunchTapRealtimeMs;
+            Log.i("LaunchPerf", "event=launcher_onStop target=" + lastLaunchTarget + " sinceTapMs=" + stopDelta);
+            lastLaunchTapRealtimeMs = 0L;
+        }
+        wasStopped = true;
+        unregisterWatchNextObserver();
         handler.removeCallbacks(wallpaperRecheck);
         if (mediaReceiverRegistered) {
             try {
@@ -346,6 +467,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        final boolean returningFromApp = wasStopped;
+        wasStopped = false;
         applyTheme();
         if (appsDirty) {
             dock.reload();
@@ -354,23 +477,36 @@ public class MainActivity extends Activity {
         updateDate();
         updateWifiLabel();
         applyWallpaper();
-        updateTopShelf();
+        updateTopShelf(returningFromApp);
+        if (returningFromApp) {
+            handler.removeCallbacks(shelfReturnRefresh);
+            handler.postDelayed(shelfReturnRefresh, SHELF_RETURN_REFRESH_MS);
+            Log.d(TAG, "watch-next recheck scheduled after app return");
+        }
         WeatherStore.fetch(this, false, this::updateWeatherUi);
         handler.postDelayed(minuteTick, MINUTE_MS);
 
-        // Back from an app: stop anything that kept playing sound. Cancelled in onPause, so opening an
-        // app straight from Home never gets its own playback paused by a late check.
         handler.removeCallbacks(audioGuardRun);
         for (long delay : AUDIO_GUARD_DELAYS_MS) handler.postDelayed(audioGuardRun, delay);
 
-        // Always land back on the dock, on the tile we left from.
-        root.post(() -> dock.focus(lastDock));
+        if (returningFromApp || getCurrentFocus() == null) {
+            root.post(() -> {
+                if (returningFromApp || getCurrentFocus() == null) {
+                    dock.focus(lastDock);
+                }
+            });
+        }
     }
 
     @Override
     protected void onPause() {
+        if (lastLaunchTapRealtimeMs > 0L) {
+            long pauseDelta = SystemClock.elapsedRealtime() - lastLaunchTapRealtimeMs;
+            Log.i("LaunchPerf", "event=launcher_onPause target=" + lastLaunchTarget + " sinceTapMs=" + pauseDelta);
+        }
         super.onPause();
         handler.removeCallbacks(audioGuardRun);
+        handler.removeCallbacks(shelfReturnRefresh);
         handler.removeCallbacks(minuteTick);
         if (wallpaperVideo.getVisibility() == View.VISIBLE) wallpaperVideo.pause();
     }
@@ -476,24 +612,49 @@ public class MainActivity extends Activity {
         v.setClipToOutline(true);
     }
 
+    private void applyShelfCardColors(ShelfCard card, LauncherTheme t, boolean focused) {
+        if (card == null || t == null) return;
+        if (card.title != null) {
+            card.title.setTextColor(focused ? t.textPrimary : t.textSecondary);
+        }
+        if (card.subtitle != null) {
+            card.subtitle.setTextColor(t.textDim);
+        }
+        if (card.emptyIcon != null) {
+            card.emptyIcon.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    focused ? t.accent : t.textSecondary));
+            card.emptyIcon.setAlpha(focused ? 0.90f : 0.56f);
+        }
+        if (card.emptyHint != null) {
+            card.emptyHint.setTextColor(focused ? t.textSecondary : t.textDim);
+        }
+    }
+
     private void setupShelfCard(ShelfCard card, int slot) {
-        roundClip(card.root, getResources().getDimension(R.dimen.top_shelf_card_radius));
+        roundClip(card.frame, getResources().getDimension(R.dimen.top_shelf_card_radius));
         card.root.setOnFocusChangeListener((v, focused) -> {
-            float scale = focused ? 1.05f : 1.0f;
-            v.animate().scaleX(scale).scaleY(scale)
-                    .setDuration(140)
-                    .setInterpolator(new DecelerateInterpolator())
+            float scale = focused ? 1.035f : 1.0f;
+            card.frame.animate().scaleX(scale).scaleY(scale)
+                    .translationZ(focused ? 6f * density : 0f)
+                    .setDuration(focused ? 130 : 100)
+                    .setInterpolator(new DecelerateInterpolator(1.5f))
                     .start();
-            if (focused) v.bringToFront();
+            LauncherTheme activeTheme = LauncherTheme.byId(Prefs.theme(this));
+            applyShelfCardColors(card, activeTheme, focused);
         });
 
         card.root.setOnClickListener(v -> {
-            TopShelfStore.Item item = TopShelfStore.getSlot(this, slot);
+            TopShelfStore.Item item = card.item;
+            if (item == null) item = TopShelfStore.getCachedSlots(this)[slot];
             if (item.intentUri != null && !item.intentUri.isEmpty()) {
                 try {
                     Intent i = Intent.parseUri(item.intentUri, Intent.URI_INTENT_SCHEME);
                     i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    final String pkg = item.targetPackage;
                     open(i);
+                    if (pkg != null && !pkg.isEmpty()) {
+                        handler.post(() -> TopShelfStore.recordAppLaunch(getApplicationContext(), pkg));
+                    }
                     return;
                 } catch (Exception ignored) {
                 }
@@ -502,77 +663,127 @@ public class MainActivity extends Activity {
                 Intent launch = getPackageManager().getLeanbackLaunchIntentForPackage(item.targetPackage);
                 if (launch == null) launch = getPackageManager().getLaunchIntentForPackage(item.targetPackage);
                 if (launch != null) {
-                    TopShelfStore.recordAppLaunch(this, item.targetPackage);
+                    final String pkg = item.targetPackage;
                     open(launch);
+                    handler.post(() -> TopShelfStore.recordAppLaunch(getApplicationContext(), pkg));
                     return;
                 }
             }
-            TopShelfEditDialog.show(this, slot, s -> updateTopShelf());
+            TopShelfEditDialog.show(this, slot, s -> updateTopShelf(true));
         });
 
         card.root.setOnLongClickListener(v -> {
-            TopShelfEditDialog.show(this, slot, s -> updateTopShelf());
+            TopShelfEditDialog.show(this, slot, s -> updateTopShelf(true));
             return true;
         });
     }
 
     private void updateTopShelf() {
-        for (int slot = 0; slot < shelf.length; slot++) bindShelfSlot(slot, shelf[slot]);
+        updateTopShelf(false);
     }
 
-    private void bindShelfSlot(int slot, ShelfCard card) {
-        TopShelfStore.Item item = TopShelfStore.getSlot(this, slot);
-        if (item == null) return;
-
-        String title = item.title;
-        String subtitle = item.subtitle;
-
-        if (item.isCustom) {
-            String customTag = getString(R.string.custom_label);
-            if (subtitle != null && !subtitle.isEmpty()) {
-                subtitle = subtitle + " \u00B7 " + customTag;
-            } else {
-                subtitle = customTag;
+    private void updateTopShelf(boolean force) {
+        TopShelfStore.Item[] cached = TopShelfStore.getCachedSlots(this);
+        for (int slot = 0; slot < shelf.length; slot++) bindShelfSlot(slot, shelf[slot], cached[slot]);
+        TopShelfStore.refreshSlots(this, force, items -> {
+            if (isFinishing() || isDestroyed()) return;
+            int changed = 0;
+            for (int slot = 0; slot < shelf.length; slot++) {
+                if (bindShelfSlot(slot, shelf[slot], items[slot])) changed++;
             }
+            Log.d(TAG, "shelf callback force=" + force + " changed=" + changed);
+        });
+    }
+
+    private static boolean sameShelfItem(TopShelfStore.Item a, TopShelfStore.Item b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        return a.id.equals(b.id)
+                && a.title.equals(b.title)
+                && a.subtitle.equals(b.subtitle)
+                && a.backdropUri.equals(b.backdropUri)
+                && a.targetPackage.equals(b.targetPackage)
+                && a.isCustom == b.isCustom
+                && a.progressPercent == b.progressPercent
+                && a.intentUri.equals(b.intentUri);
+    }
+
+    private boolean bindShelfSlot(int slot, ShelfCard card, TopShelfStore.Item item) {
+        if (item == null) return false;
+        if (sameShelfItem(card.item, item)) return false;
+        card.item = item;
+
+        boolean populated = !item.title.trim().isEmpty() || item.hasBackdrop() || item.hasTarget();
+        int cardW = getResources().getDimensionPixelSize(populated
+                ? R.dimen.top_shelf_card_width : R.dimen.top_shelf_empty_card_width);
+        int cardH = getResources().getDimensionPixelSize(populated
+                ? R.dimen.top_shelf_card_height : R.dimen.top_shelf_empty_card_height);
+
+        ViewGroup.LayoutParams frameLp = card.frame.getLayoutParams();
+        if (frameLp != null && (frameLp.width != cardW || frameLp.height != cardH)) {
+            frameLp.width = cardW;
+            frameLp.height = cardH;
+            card.frame.setLayoutParams(frameLp);
+        }
+        ViewGroup.LayoutParams rootLp = card.root.getLayoutParams();
+        if (rootLp != null && rootLp.width != cardW) {
+            rootLp.width = cardW;
+            rootLp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            card.root.setLayoutParams(rootLp);
+        }
+        ViewGroup.LayoutParams titleLp = card.title.getLayoutParams();
+        if (titleLp != null && titleLp.width != cardW) {
+            titleLp.width = cardW;
+            card.title.setLayoutParams(titleLp);
         }
 
-        card.title.setText(title);
-        if (subtitle != null) subtitle = subtitle.replace("Ãƒâ€šÃ‚Â·", "\u00B7");
-        card.subtitle.setText(subtitle);
+        card.badge.setVisibility(View.GONE);
+        card.subtitle.setVisibility(View.GONE);
 
-        // App badge resolution: only show if genuine app target exists
-        if (item.hasTarget()) {
-            Drawable icon = null;
-            try {
-                icon = getPackageManager().getApplicationIcon(item.targetPackage);
-            } catch (Exception ignored) {
-            }
-            if (icon != null) {
-                card.badge.setImageDrawable(icon);
-                card.badge.setVisibility(View.VISIBLE);
-            } else {
-                card.badge.setVisibility(View.GONE);
-            }
-        } else {
-            card.badge.setVisibility(View.GONE);
+        if (!populated) {
+            card.image.setTag(null);
+            card.image.setImageDrawable(null);
+            card.image.setVisibility(View.GONE);
+            card.progress.setVisibility(View.GONE);
+            if (card.emptyState != null) card.emptyState.setVisibility(View.VISIBLE);
+            if (card.emptyHint != null) card.emptyHint.setText(R.string.top_shelf_empty_title);
+            card.title.setText(R.string.top_shelf_subtitle_empty);
+            return true;
         }
 
-        // Progress bar: strictly genuine (0..100) or hidden
-        if (item.progressPercent >= 0 && item.progressPercent <= 100) {
+        String title = item.title != null ? item.title.trim() : "";
+        String cleanSub = TopShelfStore.sanitizeSubtitle(item.subtitle);
+        String caption = title;
+        if (!cleanSub.isEmpty() && !cleanSub.equalsIgnoreCase(title)) {
+            caption = title.isEmpty() ? cleanSub : (title + " \u00B7 " + cleanSub);
+        }
+        card.title.setText(caption);
+
+        if (item.progressPercent > 0 && item.progressPercent < 100) {
             card.progress.setProgress(item.progressPercent);
             card.progress.setVisibility(View.VISIBLE);
         } else {
             card.progress.setVisibility(View.GONE);
         }
 
-        // Authentic backdrop or elegant translucent glass empty state
         if (item.hasBackdrop()) {
-            loadTopShelfBackdrop(item.backdropUri, card.image, null);
+            String loadedUri = card.image.getTag() instanceof String ? (String) card.image.getTag() : null;
+            if (!item.backdropUri.equals(loadedUri)) {
+                loadTopShelfBackdrop(item.backdropUri, card.image, card.emptyState);
+            } else if (card.image.getDrawable() != null) {
+                card.image.setVisibility(View.VISIBLE);
+                if (card.emptyState != null) card.emptyState.setVisibility(View.GONE);
+            }
         } else {
-            // No synthetic images! Clean glass empty state
+            card.image.setTag(null);
             card.image.setImageDrawable(null);
             card.image.setVisibility(View.GONE);
+            if (card.emptyState != null) {
+                card.emptyState.setVisibility(View.VISIBLE);
+                if (card.emptyHint != null) card.emptyHint.setText(title);
+            }
         }
+        return true;
     }
 
     private void loadTopShelfBackdrop(String uriStr, ImageView imgView, View watermarkView) {
@@ -595,7 +806,7 @@ public class MainActivity extends Activity {
                         HttpURLConnection conn = (HttpURLConnection) new URL(uriStr).openConnection();
                         conn.setConnectTimeout(6000);
                         conn.setReadTimeout(6000);
-                        conn.setRequestProperty("User-Agent", "tv-vibehack/1.0");
+                        conn.setRequestProperty("User-Agent", "HarolHomeTV/1.0");
                         conn.connect();
                         if (conn.getResponseCode() == 200) {
                             try (InputStream in = conn.getInputStream();
@@ -632,6 +843,7 @@ public class MainActivity extends Activity {
                         imgView.setVisibility(View.VISIBLE);
                         if (watermarkView != null) watermarkView.setVisibility(View.GONE);
                     } else {
+                        imgView.setTag(null);
                         imgView.setImageDrawable(null);
                         imgView.setVisibility(View.GONE);
                         if (watermarkView != null) watermarkView.setVisibility(View.VISIBLE);
@@ -651,7 +863,8 @@ public class MainActivity extends Activity {
         }
         weatherPill.setVisibility(View.VISIBLE);
         weatherIcon.setImageResource(data.getIconResId());
-        weatherText.setText(Math.round(data.temperature) + "\u00B0C");
+        btnWeatherIcon.setImageResource(data.getIconResId());
+        weatherText.setText(Math.round(data.temperature) + "\u00B0C · " + data.cityName);
     }
 
     /** "SÃƒÂ¡b, 26 Abr": short day, day of month and short month, each word capitalised, no dots. */
@@ -667,15 +880,30 @@ public class MainActivity extends Activity {
         date.setText(b);
     }
 
-    /** The Weather button: turns the pill on if it was off, refreshes it and says what it found. */
+    /** The Weather button: turns the pill on if it was off, shows cached weather immediately, and refreshes in background. */
     private void showWeather() {
         if (!WeatherStore.isEnabled(this)) WeatherStore.setEnabled(this, true);
+        final WeatherStore.WeatherData cached = WeatherStore.getCached(this);
+        final boolean showedCached;
+        if (cached != null && cached.isValid()) {
+            updateWeatherUi(cached);
+            Toast.makeText(this, cached.cityName + "  " + Math.round(cached.temperature) + "\u00B0C",
+                    Toast.LENGTH_SHORT).show();
+            showedCached = true;
+        } else {
+            showedCached = false;
+        }
         WeatherStore.fetch(this, true, data -> {
             updateWeatherUi(data);
             if (data != null && data.isValid()) {
-                Toast.makeText(this, data.cityName + "  " + Math.round(data.temperature) + "\u00B0C",
-                        Toast.LENGTH_LONG).show();
-            } else {
+                boolean changed = !showedCached
+                        || Math.round(data.temperature) != Math.round(cached.temperature)
+                        || !data.cityName.equals(cached.cityName);
+                if (changed) {
+                    Toast.makeText(this, data.cityName + "  " + Math.round(data.temperature) + "\u00B0C",
+                            Toast.LENGTH_LONG).show();
+                }
+            } else if (!showedCached) {
                 Toast.makeText(this, R.string.err_offline, Toast.LENGTH_SHORT).show();
             }
         });
@@ -715,14 +943,41 @@ public class MainActivity extends Activity {
         clock.setTextColor(t.textPrimary);
         if (ampm != null) ampm.setTextColor(t.textSecondary);
         date.setTextColor(t.textSecondary);
-        // brandTitle removed
         topShelfLabel.setTextColor(t.textPrimary);
-        // Preserved top_bar_btn_bg and weather_capsule_bg
-        weatherIcon.setImageTintList(null);
-        for (TextView b : new TextView[]{btnApps, btnSearch, btnPersonalize, btnThemes, btnWeather}) {
-            ThemeKit.applyPill(b, t);
+        ThemeKit.applySphere(btnInputs, t);
+        ThemeKit.applySphere(btnSettings, t);
+        ThemeKit.applySphere(btnWifi, t);
+        if (weatherPill != null) {
+            weatherPill.setBackground(ThemeKit.weatherCapsuleBackground(this, t));
         }
-        btnWeather.setCompoundDrawableTintList(null);   // keep the weather icon in its own colours
+        if (weatherText != null) {
+            weatherText.setTextColor(t.textPrimary);
+        }
+        weatherIcon.setImageTintList(null);
+
+        int shelfRadiusPx = getResources().getDimensionPixelSize(R.dimen.top_shelf_card_radius);
+        for (ShelfCard card : shelf) {
+            if (card != null && card.frame != null) {
+                ThemeKit.applyCard(card.frame, t, shelfRadiusPx);
+                applyShelfCardColors(card, t, card.root.isFocused());
+            }
+        }
+
+        ThemeKit.applyPill(btnApps, t);
+        ThemeKit.applyToolButton(btnSearchCircle, btnSearchIcon, btnSearchLabel, t, true);
+        ThemeKit.applyToolButton(btnPersonalizeCircle, btnPersonalizeIcon, btnPersonalizeLabel, t, true);
+        ThemeKit.applyToolButton(btnThemesCircle, btnThemesIcon, btnThemesLabel, t, true);
+        if (btnThemesIcon != null) btnThemesIcon.setImageTintList(ThemeKit.toolAccentIconColors(t));
+        ThemeKit.applyToolButton(btnWeatherCircle, btnWeatherIcon, btnWeatherLabel, t, false);
+        int dividerColor = t.cardBorderIdle;
+        bottomDivider1.setBackgroundColor(dividerColor);
+        bottomDivider2.setBackgroundColor(dividerColor);
+        if (wallpaperBase != null && showComposedWallpaper(t)) {
+            // Static wallpaper already carries the dim and both scrims.
+        } else {
+            scrimTop.setVisibility(View.VISIBLE);
+            scrimBottom.setVisibility(View.VISIBLE);
+        }
         updateRootBackground();
     }
 
@@ -769,12 +1024,15 @@ public class MainActivity extends Activity {
     private boolean displayWallpaper(String uriStr) {
         videoPrepared = false;
         videoWallpaper = null;
+        wallpaperBase = null;
         wallpaperVideo.stopPlayback();
         wallpaperVideo.setVisibility(View.GONE);
         wallpaper.setImageDrawable(null);
         wallpaper.clearColorFilter();
         wallpaper.setVisibility(View.GONE);
         wallpaperDim.setVisibility(View.GONE);
+        scrimTop.setVisibility(View.VISIBLE);
+        scrimBottom.setVisibility(View.VISIBLE);
         if (uriStr.isEmpty()) {
             updateRootBackground();
             return true;
@@ -794,19 +1052,87 @@ public class MainActivity extends Activity {
                 updateRootBackground();
                 return false;
             }
+            if (d instanceof BitmapDrawable) {
+                Bitmap base = ((BitmapDrawable) d).getBitmap();
+                if (base != null && !base.isRecycled()) {
+                    wallpaperBase = base;
+                    if (showComposedWallpaper(LauncherTheme.byId(Prefs.theme(this)))) {
+                        updateRootBackground();
+                        return true;
+                    }
+                    wallpaperBase = null;
+                }
+            }
             wallpaper.setImageDrawable(d);
             // Same 40% black as the old full-screen dim view, folded into the image draw.
             wallpaper.setColorFilter(0x66000000, PorterDuff.Mode.SRC_ATOP);
             wallpaper.setVisibility(View.VISIBLE);
+            scrimTop.setVisibility(View.VISIBLE);
+            scrimBottom.setVisibility(View.VISIBLE);
             updateRootBackground();
             return true;
         } catch (Exception e) {
             videoWallpaper = null;
             wallpaperVideo.setVisibility(View.GONE);
             wallpaperDim.setVisibility(View.GONE);
+            wallpaperBase = null;
+            scrimTop.setVisibility(View.VISIBLE);
+            scrimBottom.setVisibility(View.VISIBLE);
             updateRootBackground();
             return false;
         }
+    }
+
+    /**
+     * Bakes the static wallpaper, its 40% dim and both theme scrims into one texture. The GPU then
+     * composites a single full-screen layer instead of three translucent full-screen passes.
+     */
+    private boolean showComposedWallpaper(LauncherTheme theme) {
+        Bitmap base = wallpaperBase;
+        if (base == null || base.isRecycled()) return false;
+        Bitmap composed = composeWallpaper(base, theme);
+        if (composed == null) return false;
+        wallpaper.setImageBitmap(composed);
+        wallpaper.clearColorFilter();
+        wallpaper.setVisibility(View.VISIBLE);
+        scrimTop.setVisibility(View.GONE);
+        scrimBottom.setVisibility(View.GONE);
+        return true;
+    }
+
+    private Bitmap composeWallpaper(Bitmap base, LauncherTheme theme) {
+        int width = getResources().getDisplayMetrics().widthPixels;
+        int height = getResources().getDisplayMetrics().heightPixels;
+        if (width <= 0 || height <= 0 || base.getWidth() <= 0 || base.getHeight() <= 0) return null;
+        try {
+            Bitmap out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(out);
+            canvas.drawColor(Color.BLACK);
+            Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
+            Rect src = centerCropRect(base.getWidth(), base.getHeight(), width, height);
+            canvas.drawBitmap(base, src, new Rect(0, 0, width, height), paint);
+            paint.setColor(0x66000000);
+            canvas.drawRect(0, 0, width, height, paint);
+            Drawable top = ThemeKit.scrimTop(this, theme);
+            top.setBounds(0, 0, width, getResources().getDimensionPixelSize(R.dimen.scrim_top_height));
+            top.draw(canvas);
+            Drawable bottom = ThemeKit.scrimBottom(this, theme);
+            int bottomHeight = getResources().getDimensionPixelSize(R.dimen.scrim_bottom_height);
+            bottom.setBounds(0, height - bottomHeight, width, height);
+            bottom.draw(canvas);
+            return out;
+        } catch (Exception | OutOfMemoryError ignored) {
+            return null;
+        }
+    }
+
+    private static Rect centerCropRect(int sourceWidth, int sourceHeight, int targetWidth, int targetHeight) {
+        float scale = Math.max((float) targetWidth / sourceWidth, (float) targetHeight / sourceHeight);
+        int width = Math.min(sourceWidth, Math.round(targetWidth / scale));
+        int height = Math.min(sourceHeight, Math.round(targetHeight / scale));
+        int left = (sourceWidth - width) / 2;
+        int top = (sourceHeight - height) / 2;
+        return new Rect(left, top, left + width, top + height);
     }
 
     private boolean sourceAvailable(String uriStr) {
@@ -878,6 +1204,7 @@ public class MainActivity extends Activity {
                         ? ImageDecoder.createSource(new File(uri.getPath()))
                         : ImageDecoder.createSource(getContentResolver(), uri);
                 return ImageDecoder.decodeDrawable(src, (decoder, info, source) -> {
+                    decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
                     int max = Math.max(getResources().getDisplayMetrics().widthPixels,
                             getResources().getDisplayMetrics().heightPixels);
                     int largest = Math.max(info.getSize().getWidth(), info.getSize().getHeight());
@@ -937,8 +1264,14 @@ public class MainActivity extends Activity {
 
     private void open(Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        long t0 = SystemClock.elapsedRealtime();
+        String target = i.getComponent() != null
+                ? i.getComponent().flattenToShortString()
+                : (i.getPackage() != null ? i.getPackage() : String.valueOf(i.getAction()));
         try {
             startActivity(i);
+            long t1 = SystemClock.elapsedRealtime();
+            markAppLaunchStart(target, t0, t1 - t0);
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
         }
@@ -946,8 +1279,10 @@ public class MainActivity extends Activity {
 
     /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
     private void showInputs() {
+        LauncherTheme activeTheme = LauncherTheme.byId(Prefs.theme(this));
         View anchor = findViewById(R.id.btnInputs);
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        ThemeKit.applyPopupPanel(panel, activeTheme);
         LinearLayout rows = panel.findViewById(R.id.rows);
 
         // Compact: as wide as the Inputs pill (a touch wider so "HDMI 1" fits), hanging right below it.
@@ -1014,32 +1349,47 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Fit the widest row: TVs that report a status on every port (Sony) would otherwise squeeze the names out.
+        // Fit the widest row and clamp inside screen bounds so right-aligned header buttons never clip.
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        popup.setWidth(Math.max(width, panel.getMeasuredWidth()));
+        int finalW = Math.max(width, panel.getMeasuredWidth());
+        int finalH = panel.getMeasuredHeight();
+        popup.setWidth(finalW);
+
+        int margin = Math.round(12f * density);
+        int[] loc = new int[2];
+        anchor.getLocationOnScreen(loc);
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int x = Math.max(margin, Math.min(loc[0], dm.widthPixels - finalW - margin));
+        int y = loc[1] + anchor.getHeight() + Math.round(10f * density);
+        if (y + finalH > dm.heightPixels - margin) {
+            y = Math.max(margin, dm.heightPixels - finalH - margin);
+        }
 
         // Drop in: fade and unfold from the top edge.
         panel.setAlpha(0f);
         panel.setPivotY(0f);
         panel.setScaleY(0.92f);
         panel.setTranslationY(-8 * density);
-        popup.showAsDropDown(anchor, 0, (int) (10 * density), Gravity.START);
+        popup.showAtLocation(anchor, Gravity.TOP | Gravity.START, x, y);
         panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
         rows.getChildAt(0).requestFocus();
     }
 
     private void addSeparator(LinearLayout rows) {
+        LauncherTheme activeTheme = LauncherTheme.byId(Prefs.theme(this));
         View line = new View(this);
-        line.setBackgroundColor(0x1FFFFFFF);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) density);
+        line.setBackgroundColor(activeTheme.cardBorderIdle);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, (int) density));
         int m = (int) (6 * density), h = (int) (12 * density);
         lp.setMargins(h, m, h, m);
         rows.addView(line, lp);
     }
 
     private void addInputRow(LinearLayout rows, PopupWindow popup, int iconRes, String title, int state, Runnable action) {
+        LauncherTheme activeTheme = LauncherTheme.byId(Prefs.theme(this));
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
+        ThemeKit.applyPopupRow(row, activeTheme);
         ((ImageView) row.findViewById(R.id.icon)).setImageResource(iconRes);
         ((TextView) row.findViewById(R.id.title)).setText(title);
         TextView status = row.findViewById(R.id.status);

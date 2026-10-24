@@ -38,6 +38,7 @@ public class DreamPhotoActivity extends Activity {
     private WallpaperAdapter adapter;
     private RecyclerView grid;
     private TextView status;
+    private TextView useWallpaper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,14 +46,15 @@ public class DreamPhotoActivity extends Activity {
         setContentView(R.layout.activity_dream_photo);
 
         LauncherTheme theme = LauncherTheme.byId(Prefs.theme(this));
-        findViewById(R.id.dreamPickRoot).setBackgroundColor(theme.screenBg);
+        findViewById(R.id.dreamPickRoot).setBackground(ThemeKit.fallback(this, theme));
         ((TextView) findViewById(R.id.dreamPickTitle)).setTextColor(theme.textPrimary);
-        ((TextView) findViewById(R.id.dreamPickHint)).setTextColor(theme.textDim);
+        ((TextView) findViewById(R.id.dreamPickHint)).setTextColor(theme.textSecondary);
         status = findViewById(R.id.dreamPickStatus);
         status.setTextColor(theme.textDim);
 
-        TextView useWallpaper = findViewById(R.id.btnDreamUseWallpaper);
-        ThemeKit.applyPill(useWallpaper, theme);
+        String currentDream = Prefs.dreamWallpaper(this);
+        useWallpaper = findViewById(R.id.btnDreamUseWallpaper);
+        ThemeKit.applySelectableChip(useWallpaper, theme, currentDream == null || currentDream.isEmpty());
         useWallpaper.setNextFocusDownId(R.id.dreamPickGrid);
         useWallpaper.setOnClickListener(v -> {
             Prefs.setDreamWallpaper(this, "");
@@ -66,7 +68,7 @@ public class DreamPhotoActivity extends Activity {
         grid.setNextFocusUpId(R.id.btnDreamUseWallpaper);
         adapter = new WallpaperAdapter(this, this::apply);
         adapter.setTheme(theme);
-        adapter.setSelected(Prefs.dreamWallpaper(this));
+        adapter.setSelected(currentDream);
         grid.setAdapter(adapter);
 
         if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -85,6 +87,7 @@ public class DreamPhotoActivity extends Activity {
             scan();
         } else {
             status.setText(R.string.wallpaper_empty);
+            if (useWallpaper != null) useWallpaper.requestFocus();
         }
     }
 
@@ -115,7 +118,11 @@ public class DreamPhotoActivity extends Activity {
                 if (isFinishing() || isDestroyed()) return;
                 adapter.setItems(found);
                 status.setText(found.isEmpty() ? getString(R.string.dream_pick_empty) : "");
-                if (!found.isEmpty()) focusFirst();
+                if (!found.isEmpty()) {
+                    focusFirst();
+                } else if (useWallpaper != null) {
+                    useWallpaper.requestFocus();
+                }
             });
         });
     }

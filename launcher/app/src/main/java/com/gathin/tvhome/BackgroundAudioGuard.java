@@ -9,10 +9,8 @@ import android.media.session.PlaybackState;
 import android.provider.Settings;
 import android.view.KeyEvent;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+
 
 /**
  * Stops an app that keeps playing sound after you press Home.
@@ -22,24 +20,19 @@ import java.util.Set;
  * which paused the wrong thing, fired far too often and did nothing for apps that ignore focus.
  *
  * Now, when Home comes back to the front:
- *  1. With notification-listener access (granted over adb, see {@link MediaSessionListener}) every
- *     session that is really PLAYING gets its own pause(), except the apps listed in
- *     res/values/config.xml under keep_playing_apps (Spotify by default, so music can carry on).
- *  2. Without that access, if the TV reports music/video playing, a single "pause" media key is
- *     sent as a best effort. It cannot tell Spotify apart, so grant the access for the exact behaviour.
+ *  1. With notification-listener access, every active playback session gets an explicit pause().
+ *  2. Without that access, a media-pause key is sent when Android reports active audio and no
+ *     session could be paused.
  *
- * It deliberately does NOT request audio focus: taking focus is what made players duck or stop
- * for no reason, and it would also silence the music you chose to keep.
+ * It deliberately does NOT request audio focus, which previously ducked audio and interfered
+ * with playback state.
  */
 final class BackgroundAudioGuard {
 
     private final Context ctx;
-    private final Set<String> keepPlaying;
 
     BackgroundAudioGuard(Context ctx) {
         this.ctx = ctx.getApplicationContext();
-        this.keepPlaying = new HashSet<>(Arrays.asList(
-                ctx.getResources().getStringArray(R.array.keep_playing_apps)));
     }
 
     /** True when this app is an enabled notification listener (needed to see other apps' sessions). */
@@ -61,24 +54,26 @@ final class BackgroundAudioGuard {
         }
     }
 
-    /** @return false when the session list could not be read (so the caller can fall back). */
+    /** @return true when one or more active sessions were paused. */
     private boolean pauseSessions() {
         try {
             MediaSessionManager msm = (MediaSessionManager) ctx.getSystemService(Context.MEDIA_SESSION_SERVICE);
             if (msm == null) return false;
             List<MediaController> sessions = msm.getActiveSessions(
                     new ComponentName(ctx, MediaSessionListener.class));
+            boolean paused = false;
             for (MediaController mc : sessions) {
                 String pkg = mc.getPackageName();
-                if (pkg == null || pkg.equals(ctx.getPackageName()) || keepPlaying.contains(pkg)) continue;
+                if (pkg == null || pkg.equals(ctx.getPackageName())) continue;
                 PlaybackState st = mc.getPlaybackState();
                 if (st == null) continue;
-                int s = st.getState();
-                if (s == PlaybackState.STATE_PLAYING || s == PlaybackState.STATE_BUFFERING) {
+                int state = st.getState();
+                if (state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING) {
                     mc.getTransportControls().pause();
+                    paused = true;
                 }
             }
-            return true;
+            return paused;
         } catch (SecurityException e) {
             return false;   // access revoked or the service is not bound yet
         }

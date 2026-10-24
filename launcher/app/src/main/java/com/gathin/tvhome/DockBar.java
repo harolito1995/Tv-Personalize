@@ -12,6 +12,7 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
@@ -33,25 +34,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The single row of tiles on the home screen: Home, up to {@link #APP_SLOTS} favourite apps, and
- * "All apps". Favourites come from {@link Prefs} (edit them with a long-press on a tile, or from the
- * All apps screen). Tiles are plain views in a horizontal LinearLayout, so the D-pad moves between
- * them with the normal focus search; {@link MainActivity} wires up/down/ends.
+ * The single row of favourite app tiles on the home screen.
+ * Favourites come from {@link Prefs} and are edited with a long-press on a tile. Tiles are
+ * plain views in a horizontal LinearLayout, so the D-pad moves between them with normal focus
+ * search; {@link MainActivity} wires up/down/ends.
  */
 final class DockBar {
 
     static final int APP_SLOTS = 8;
-    static final float FOCUS_SCALE = 1.08f;
+    static final float FOCUS_SCALE = 1.06f;
 
-    private static final int KIND_HOME = 0;
     private static final int KIND_APP = 1;
-    private static final int KIND_ALL = 2;
 
     interface Callbacks {
-        /** A tile got focus; index is its position in the row (0 = Home). */
+        /** A tile got focus; index is its position in the row. */
         void onTileFocused(int index);
-
-        void onAllApps();
 
         /** The row was rebuilt: tile views and ids changed, so re-apply any focus wiring. */
         void onRebuilt();
@@ -129,7 +126,6 @@ final class DockBar {
         items.clear();
         row.removeAllViews();
 
-        items.add(new Item(KIND_HOME, act.getString(R.string.nav_home), null));
         PackageManager pm = act.getPackageManager();
         int apps = 0;
         for (String stored : Prefs.favourites(act)) {
@@ -175,47 +171,25 @@ final class DockBar {
         it.glyph = glyph;
         tile.setId(View.generateViewId());   // unique per tile so focus wiring can point at it
 
-        final float radius = 12f * density;
-        tile.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View v, Outline outline) {
-                outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
-            }
-        });
-        tile.setClipToOutline(true);
+        final int radiusPx = act.getResources().getDimensionPixelSize(R.dimen.dock_tile_radius);
+        ThemeKit.applyCard(tile, theme, radiusPx);
+        tile.setContentDescription(it.label);
 
-        if (it.kind == KIND_APP) {
-            label.setText(it.label);
-            label.setTextColor(theme.textSecondary);
-            inner.setVisibility(View.GONE);
-            Drawable[] cached = AppAdapter.cacheGet(it.key);
-            if (cached != null) {
-                it.banner = cached[0];
-                it.icon = cached[1];
-            }
-            bindArt(it);
-            tile.setOnClickListener(v -> launch(it));
-            tile.setOnLongClickListener(v -> {
-                showMenu(v, it);
-                return true;
-            });
-        } else {
-            // Home: a glyph with its name inside the tile, no label underneath.
-            label.setVisibility(View.GONE);
-            art.setVisibility(View.GONE);
-            glyph.setImageResource(R.drawable.ic_home);
-            glyph.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
-            glyph.setVisibility(View.VISIBLE);
-            FrameLayout.LayoutParams glp = (FrameLayout.LayoutParams) glyph.getLayoutParams();
-            glp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-            glp.topMargin = (int) (6 * density);
-            glyph.setLayoutParams(glp);
-            inner.setText(it.label);
-            inner.setVisibility(View.VISIBLE);
-            ViewGroup.LayoutParams lp = tile.getLayoutParams();
-            lp.height = (int) (52 * density);   // Home is the taller, "selected" tile
-            tile.setLayoutParams(lp);
+        label.setText(it.label);
+        label.setTextColor(theme.textSecondary);
+        label.setVisibility(View.VISIBLE);
+        inner.setVisibility(View.GONE);
+        Drawable[] cached = AppAdapter.cacheGet(it.key);
+        if (cached != null) {
+            it.banner = cached[0];
+            it.icon = cached[1];
         }
+        bindArt(it);
+        tile.setOnClickListener(v -> launch(it));
+        tile.setOnLongClickListener(v -> {
+            showMenu(v, it);
+            return true;
+        });
 
         tile.setOnFocusChangeListener((v, focused) -> {
             float s = focused ? FOCUS_SCALE : 1f;
@@ -224,6 +198,9 @@ final class DockBar {
                     .setInterpolator(new DecelerateInterpolator(1.6f))
                     .start();
             v.setElevation(focused ? 10f * density : 0f);
+            if (label != null) {
+                label.setTextColor(focused ? theme.textPrimary : theme.textSecondary);
+            }
             if (focused) {
                 // Elevation controls Z-ordering. DO NOT call bringToFront() because
                 // in LinearLayout it removes and appends the child, reordering items!
@@ -235,16 +212,20 @@ final class DockBar {
     private void bindArt(Item it) {
         if (it.art == null) return;
         if (it.banner != null) {
+            // Leanback banners carry the complete 16:9 artwork, matching All apps.
             it.art.setImageDrawable(it.banner);
             it.art.setVisibility(View.VISIBLE);
             it.glyph.setVisibility(View.GONE);
-        } else if (it.icon != null) {
+            return;
+        }
+        if (it.icon != null) {
+            // Square icon only as a fallback for apps that publish no banner.
             it.art.setVisibility(View.GONE);
             it.glyph.setImageTintList(null);
             it.glyph.setImageDrawable(it.icon);
             FrameLayout.LayoutParams glp = (FrameLayout.LayoutParams) it.glyph.getLayoutParams();
             glp.gravity = Gravity.CENTER;
-            glp.width = glp.height = (int) (34 * density);
+            glp.width = glp.height = (int) (30 * density);
             it.glyph.setLayoutParams(glp);
             it.glyph.setVisibility(View.VISIBLE);
         }
@@ -266,13 +247,20 @@ final class DockBar {
     }
 
     private void launch(Item it) {
+        if (it.tile != null) {
+            it.tile.animate().scaleX(0.97f).scaleY(0.97f).setDuration(60).start();
+        }
         Intent i = new Intent(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                 .setComponent(it.component)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        long t0 = SystemClock.elapsedRealtime();
         try {
-            TopShelfStore.recordAppLaunch(act, it.pkg);
             act.startActivity(i);
+            long t1 = SystemClock.elapsedRealtime();
+            MainActivity.markAppLaunchStart(it.key, t0, t1 - t0);
+            final String pkg = it.pkg;
+            MAIN.post(() -> TopShelfStore.recordAppLaunch(act.getApplicationContext(), pkg));
         } catch (Exception ex) {
             Toast.makeText(act, act.getString(R.string.cant_open, it.label), Toast.LENGTH_SHORT).show();
         }
@@ -282,6 +270,7 @@ final class DockBar {
 
     private void showMenu(View anchor, Item it) {
         View panel = LayoutInflater.from(act).inflate(R.layout.popup_inputs, null);
+        ThemeKit.applyPopupPanel(panel, theme);
         LinearLayout rows = panel.findViewById(R.id.rows);
         final PopupWindow popup = new PopupWindow(panel, (int) (230 * density),
                 ViewGroup.LayoutParams.WRAP_CONTENT, true);
@@ -305,7 +294,7 @@ final class DockBar {
         addRow(rows, popup, R.drawable.ic_star, act.getString(R.string.remove_favourite), () -> {
             Prefs.toggleFavourite(act, it.pkg, Integer.MAX_VALUE);   // it is a favourite, so this removes it
             reload();
-            focus(1);
+            focus(0);
         });
         addRow(rows, popup, R.drawable.ic_settings, act.getString(R.string.app_info), () -> {
             Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + it.pkg));
@@ -339,6 +328,7 @@ final class DockBar {
 
     private void addRow(LinearLayout rows, PopupWindow popup, int iconRes, String title, Runnable action) {
         View r = LayoutInflater.from(act).inflate(R.layout.item_menu, rows, false);
+        ThemeKit.applyPopupRow(r, theme);
         ((ImageView) r.findViewById(R.id.icon)).setImageResource(iconRes);
         ((TextView) r.findViewById(R.id.title)).setText(title);
         r.setOnClickListener(v -> {

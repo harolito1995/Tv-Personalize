@@ -38,8 +38,8 @@ public class WeatherStoreTest {
     @Test
     public void testCacheTtlLogic() {
         long now = 10_000_000L;
-        long recent = now - (1000L * 60 * 60); // 1 hour ago
-        long old = now - (1000L * 60 * 60 * 4); // 4 hours ago
+        long recent = now - (1000L * 30 * 60); // 30 minutes ago
+        long old = now - (1000L * 60 * 60 * 2); // 2 hours ago
 
         assertTrue(now - recent < WeatherStore.CACHE_TTL_MS);
         assertFalse(now - old < WeatherStore.CACHE_TTL_MS);
