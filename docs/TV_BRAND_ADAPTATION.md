@@ -29,7 +29,7 @@ Edit `launcher/app/src/main/res/values/config.xml`:
 - `keep_playing_apps`: music app IDs exempted from pause-on-Home.
 - `columns`: app-grid columns suitable for the logical viewport.
 
-Find package IDs with `adb shell pm list packages`; inspect launchable activities before changing shortcuts. Do not assume another TV brand uses the same IDs. The Java source namespace and folders use `com.harolhome.tv`. The Android application ID remains `com.gathin.tvhome` only to support in-place updates of the existing Caixun installation. A different application ID creates a separate app with separate preferences; change it only for a deliberate new-install migration. Installer scripts therefore address components with both values, for example `com.gathin.tvhome/com.harolhome.tv.MainActivity`.
+Find package IDs with `adb shell pm list packages`; inspect launchable activities before changing shortcuts. Do not assume another TV brand uses the same IDs. The Java source namespace, folders, and Android application ID are `com.harolhome.tv`. The earlier Caixun build used `com.gathin.tvhome`; HarolHome 1.0 installs as a separate app and does not migrate its preferences. Keep the old app installed until Home, media pause, weather, and settings have been verified on the new package.
 
 ## 3. Verify TV-specific behavior
 

@@ -9,7 +9,7 @@ import android.service.notification.NotificationListenerService;
  * or posts any notification.
  *
  * Enable it once over adb (build-and-install does this for you):
- *   adb shell cmd notification allow_listener com.gathin.tvhome/com.harolhome.tv.MediaSessionListener
+ *   adb shell cmd notification allow_listener com.harolhome.tv/com.harolhome.tv.MediaSessionListener
  */
 public class MediaSessionListener extends NotificationListenerService {
 }

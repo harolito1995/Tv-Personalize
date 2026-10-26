@@ -218,4 +218,23 @@ public class TopShelfStoreTest {
         assertEquals("T4 E2", freshBoth[0].subtitle);
         assertEquals("wn_20", freshBoth[1].id);
     }
+
+    @Test
+    public void testFillWithRecentFallbackPreservesPopulatedItems() {
+        TopShelfStore.Item movie = new TopShelfStore.Item(
+                "wn_50", "Avatar", "T1 E1", "content://thumb/avatar",
+                "com.disney.disneyplus", 0, false, 80, ""
+        );
+        TopShelfStore.Item[] slots = new TopShelfStore.Item[]{movie, null};
+        TopShelfStore.Item[] result = TopShelfStore.fillWithRecentFallback(null, slots);
+        assertEquals(2, result.length);
+        assertEquals("wn_50", result[0].id);
+        assertEquals("com.disney.disneyplus", result[0].targetPackage);
+    }
+
+    @Test
+    public void testResolveAppLabelFallback() {
+        assertEquals("com.netflix.ninja", TopShelfStore.resolveAppLabel(null, "com.netflix.ninja"));
+        assertEquals("", TopShelfStore.resolveAppLabel(null, ""));
+    }
 }

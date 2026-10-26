@@ -3,6 +3,7 @@ package com.harolhome.tv;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -335,7 +336,7 @@ public final class TopShelfStore {
                 result[slot] = emptySlot(slot);
             }
         }
-        return result;
+        return fillWithRecentFallback(context, result);
     }
 
     /**
@@ -446,7 +447,7 @@ public final class TopShelfStore {
 
     /** Pure policy used by the refresh path so cache behavior is unit-testable. */
     static boolean shouldReuseCache(boolean force, long cachedAt, long now, long ttlMs) {
-        return !force && cachedAt > 0 && now - cachedAt < ttlMs;
+        return !force && cachedAt > 0 && (now - cachedAt) >= 0 && (now - cachedAt) < ttlMs;
     }
 
     static EmptyAction emptyAction(boolean cachePopulated, long emptySince, long now,
@@ -502,7 +503,7 @@ public final class TopShelfStore {
                 out[slot] = watchNext[slot] != null ? watchNext[slot] : emptySlot(slot);
             }
         }
-        return out;
+        return fillWithRecentFallback(context, out);
     }
 
     private static void cacheSlots(Context context, Item[] slots) {
@@ -864,5 +865,78 @@ public final class TopShelfStore {
     public static void clearRecents(Context context) {
         if (context == null) return;
         prefs(context).edit().remove(KEY_RECENTS).apply();
+    }
+
+    /**
+     * Fills unpopulated or missing slots with the user's most recent apps (LRU)
+     * so Continue Watching is always alive and dynamic even if streaming apps
+     * do not write to TvContract.
+     */
+    static Item[] fillWithRecentFallback(Context context, Item[] slots) {
+        if (context == null || slots == null) return slots;
+        List<String> recents = getRecentApps(context);
+        if (recents == null || recents.isEmpty()) return slots;
+
+        Item[] filled = new Item[slots.length];
+        List<String> usedPackages = new ArrayList<>();
+        for (int i = 0; i < slots.length; i++) {
+            filled[i] = slots[i];
+            if (slots[i] != null && isPopulated(slots[i])) {
+                if (slots[i].targetPackage != null && !slots[i].targetPackage.isEmpty()) {
+                    usedPackages.add(slots[i].targetPackage);
+                }
+            }
+        }
+
+        int recentIdx = 0;
+        for (int slot = 0; slot < filled.length; slot++) {
+            if (isCustom(context, slot)) continue;
+            if (filled[slot] == null || !isPopulated(filled[slot])) {
+                while (recentIdx < recents.size() && usedPackages.contains(recents.get(recentIdx))) {
+                    recentIdx++;
+                }
+                if (recentIdx < recents.size()) {
+                    String pkg = recents.get(recentIdx);
+                    recentIdx++;
+                    usedPackages.add(pkg);
+                    String label = resolveAppLabel(context, pkg);
+                    String sub = "Continuar viendo";
+                    try {
+                        sub = context.getString(R.string.top_shelf_empty_title2);
+                    } catch (Exception ignored) {
+                    }
+                    filled[slot] = new Item(
+                            "recent_" + pkg,
+                            label,
+                            sub,
+                            "package:" + pkg,
+                            pkg,
+                            slot,
+                            false,
+                            -1,
+                            ""
+                    );
+                }
+            }
+        }
+        return filled;
+    }
+
+    static String resolveAppLabel(Context context, String pkg) {
+        if (pkg == null || pkg.trim().isEmpty()) return "";
+        String cleanPkg = pkg.trim();
+        if (context == null) return cleanPkg;
+        try {
+            PackageManager pm = context.getPackageManager();
+            if (pm != null) {
+                ApplicationInfo ai = pm.getApplicationInfo(cleanPkg, 0);
+                if (ai != null) {
+                    CharSequence label = pm.getApplicationLabel(ai);
+                    if (label != null && label.length() > 0) return label.toString();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return cleanPkg;
     }
 }

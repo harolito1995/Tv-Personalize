@@ -85,7 +85,7 @@
 
         <!-- Gives BackgroundAudioGuard access to other apps' media sessions so it can pause apps that
              keep playing after Home. Reads no notifications. Enable with:
-             adb shell cmd notification allow_listener com.gathin.tvhome/com.harolhome.tv.MediaSessionListener -->
+             adb shell cmd notification allow_listener com.harolhome.tv/com.harolhome.tv.MediaSessionListener -->
         <service
             android:name=".MediaSessionListener"
             android:exported="true"
@@ -105,7 +105,7 @@
             android:screenOrientation="landscape" />
 
         <!-- Screensaver: pick it in Settings, or `settings put secure screensaver_components
-             com.gathin.tvhome/com.harolhome.tv.ClockDream` over adb. -->
+             com.harolhome.tv/com.harolhome.tv.ClockDream` over adb. -->
         <service
             android:name=".ClockDream"
             android:label="@string/dream_name"

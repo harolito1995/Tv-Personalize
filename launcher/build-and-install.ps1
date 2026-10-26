@@ -27,15 +27,15 @@ try {
     & $AdbPath -s $TvSerial install -r $apk
     if ($LASTEXITCODE -ne 0) { throw 'APK update failed; app data was not cleared.' }
 
-    & $AdbPath -s $TvSerial shell cmd package set-home-activity --user 0 com.gathin.tvhome/com.harolhome.tv.MainActivity
+    & $AdbPath -s $TvSerial shell cmd package set-home-activity --user 0 com.harolhome.tv/com.harolhome.tv.MainActivity
     if ($LASTEXITCODE -ne 0) { throw 'Could not select HarolHome as Home. The stock launcher remains enabled.' }
 
     if ($GrantLocation) {
-        & $AdbPath -s $TvSerial shell pm grant com.gathin.tvhome android.permission.ACCESS_FINE_LOCATION
+        & $AdbPath -s $TvSerial shell pm grant com.harolhome.tv android.permission.ACCESS_FINE_LOCATION
         if ($LASTEXITCODE -ne 0) { throw 'Could not grant location permission.' }
     }
     if ($EnableAudioPause) {
-        & $AdbPath -s $TvSerial shell cmd notification allow_listener com.gathin.tvhome/com.harolhome.tv.MediaSessionListener
+        & $AdbPath -s $TvSerial shell cmd notification allow_listener com.harolhome.tv/com.harolhome.tv.MediaSessionListener
         if ($LASTEXITCODE -ne 0) { throw 'Could not enable the media-session listener.' }
     }
     Write-Host 'HarolHome updated. User data and the stock launcher were preserved.'

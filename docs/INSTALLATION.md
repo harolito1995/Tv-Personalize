@@ -37,18 +37,18 @@ macOS/Linux: `./gradlew :app:assembleDebug`. Output: `launcher/app/build/outputs
 
 ## Back up and update
 
-For an existing installation, record its current state and pull its installed base APK from the path returned by `pm path`. Store the backup outside the public repository and verify its hash. Do not claim private preferences were backed up unless the device permits a verified copy.
+HarolHome TV 1.0 uses the new package ID `com.harolhome.tv` and installs as a fresh app. It does not replace or migrate data from the earlier `com.gathin.tvhome` build. Leave that old app installed until the new Home screen and optional features are verified. Store any APK backup outside the public repository and verify its hash.
 
 ```powershell
-& $adb -s "SERIAL" shell pm path com.gathin.tvhome
-& $adb -s "SERIAL" shell dumpsys package com.gathin.tvhome
+& $adb -s "SERIAL" shell pm path com.harolhome.tv
+& $adb -s "SERIAL" shell dumpsys package com.harolhome.tv
 & $adb -s "SERIAL" install -r ".\app\build\outputs\apk\debug\app-debug.apk"
 ```
 
 Check the serial and APK before installing. The `-r` update retains app data when package ID and signing key match. Never use `pm clear` or uninstall for a routine update. Press Home and choose HarolHome when Android asks. To select it explicitly:
 
 ```powershell
-& $adb -s "SERIAL" shell cmd package set-home-activity --user 0 com.gathin.tvhome/com.harolhome.tv.MainActivity
+& $adb -s "SERIAL" shell cmd package set-home-activity --user 0 com.harolhome.tv/com.harolhome.tv.MainActivity
 ```
 
 The stock launcher stays installed and enabled. Keep a route back to it in Android’s Home-app settings.
@@ -58,7 +58,7 @@ The stock launcher stays installed and enabled. Keep a route back to it in Andro
 Enable only features the TV owner accepts:
 
 - **Weather location:** allow location access in Android app settings. Without it, HarolHome tries IP-based geolocation, then uses the saved/default city.
-- **Pause media on Home:** `adb -s SERIAL shell cmd notification allow_listener com.gathin.tvhome/com.harolhome.tv.MediaSessionListener`. Confirm the TV’s prompt if shown. This listener is used to identify active playback sessions, not to read notification text.
+- **Pause media on Home:** `adb -s SERIAL shell cmd notification allow_listener com.harolhome.tv/com.harolhome.tv.MediaSessionListener`. Confirm the TV’s prompt if shown. This listener is used to identify active playback sessions, not to read notification text.
 - **Local/USB wallpapers:** grant storage access only when needed.
 
 ## Recovery

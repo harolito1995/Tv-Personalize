@@ -7,4 +7,4 @@ These are real screenshots from the project owner's Caixun 4K Android TV 14, cap
 
 The public copies mask the personal Continue Watching artwork and titles. They preserve the 1920×1080 app viewport; the television's physical output was 3840×2160 at 60 Hz. Android reported a 1920×1080 logical viewport at density 320. This documents one Caixun installation and does not guarantee identical display behavior on another TV.
 
-These images are visual documentation, not a benchmark or a claim that third-party streaming apps render every video in 4K. See the [installation guide](INSTALLATION.md) and [TV brand adaptation guide](TV_BRAND_ADAPTATION.md) before testing another model.
+HarolHome TV 1.0 uses the new application ID `com.harolhome.tv`; the earlier `com.gathin.tvhome` installation remains separate and its preferences are not migrated. These images are visual documentation, not a benchmark or a claim that third-party streaming apps render every video in 4K. See the [installation guide](INSTALLATION.md) and [TV brand adaptation guide](TV_BRAND_ADAPTATION.md) before testing another model.

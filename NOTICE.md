@@ -4,7 +4,7 @@
 
 HarolHome TV continues and customizes the public **Tv-Personalize** Android TV launcher created by Harol Ardila: https://github.com/harolito1995/Tv-Personalize. This repository retains that Git history and acknowledges inherited code. The product is rebranded and extends the launcher’s themes, focus styling, home shelf, weather, audio behavior, and secondary screens. This is not a claim of a clean-room rewrite.
 
-The Android application ID remains `com.gathin.tvhome` for installation-update compatibility.
+The HarolHome TV 1.0 Android application ID and source namespace are `com.harolhome.tv`. It is a fresh installation and does not migrate preferences from the earlier `com.gathin.tvhome` package.
 
 ## Third-party components
 

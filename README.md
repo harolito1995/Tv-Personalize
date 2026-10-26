@@ -8,7 +8,7 @@ A personalized, remote-first home screen for Android TV and Google TV: app favor
 
 HarolHome TV is a customized continuation and rebrand of the public **Tv-Personalize** project created by Harol Ardila: [github.com/harolito1995/Tv-Personalize](https://github.com/harolito1995/Tv-Personalize). This repository keeps that source history and acknowledges inherited work. The new name identifies this customized version; it does not claim a clean-room rewrite or conceal the earlier public source.
 
-The Java source namespace and folders use `com.harolhome.tv`. The Android application ID remains `com.gathin.tvhome` to support in-place updates of the existing Caixun installation; it is a compatibility identifier, not the product name.
+The Java source namespace and folders use `com.harolhome.tv`. The app ID and Java namespace are `com.harolhome.tv`. Version 1.0 installs as a fresh app; it does not import data from the earlier `com.gathin.tvhome` package. The old app is left installed until the new one is checked.
 
 ## Caixun TV screenshots
 
@@ -21,7 +21,7 @@ Real screenshots from the Caixun 4K Android TV 14 installation, showing the earl
 ## Features
 
 - Remote-friendly app dock and app grid, configurable for each TV.
-- Android TV Continue Watching entries when a streaming app publishes compatible Watch Next data.
+- Android TV Continue Watching entries with dynamic LRU fallback: keeps the shelf alive when streaming apps (Disney+, Netflix, etc.) do not emit AOSP records, automatically detects portrait poster aspect ratio (applies FIT_CENTER to prevent image cropping), and formats clean 2-line title and subtitle without truncation.
 - Four visual themes, focus feedback, search, app filters, theme and wallpaper previews.
 - Shortcuts for TV inputs, Wi-Fi, and system settings where the device exposes compatible activities.
 - Pause active media sessions on return to Home; configured music apps can be exempted. Session-aware pause requires Android notification-listener access.

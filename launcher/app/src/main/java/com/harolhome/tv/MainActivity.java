@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.ContentObserver;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -736,11 +737,16 @@ public class MainActivity extends Activity {
             titleLp.width = cardW;
             card.title.setLayoutParams(titleLp);
         }
+        ViewGroup.LayoutParams subLp = card.subtitle.getLayoutParams();
+        if (subLp != null && subLp.width != cardW) {
+            subLp.width = cardW;
+            card.subtitle.setLayoutParams(subLp);
+        }
 
         card.badge.setVisibility(View.GONE);
-        card.subtitle.setVisibility(View.GONE);
 
         if (!populated) {
+            card.subtitle.setVisibility(View.GONE);
             card.image.setTag(null);
             card.image.setImageDrawable(null);
             card.image.setVisibility(View.GONE);
@@ -753,11 +759,14 @@ public class MainActivity extends Activity {
 
         String title = item.title != null ? item.title.trim() : "";
         String cleanSub = TopShelfStore.sanitizeSubtitle(item.subtitle);
-        String caption = title;
+        card.title.setText(title);
+
         if (!cleanSub.isEmpty() && !cleanSub.equalsIgnoreCase(title)) {
-            caption = title.isEmpty() ? cleanSub : (title + " \u00B7 " + cleanSub);
+            card.subtitle.setText(cleanSub);
+            card.subtitle.setVisibility(View.VISIBLE);
+        } else {
+            card.subtitle.setVisibility(View.GONE);
         }
-        card.title.setText(caption);
 
         if (item.progressPercent > 0 && item.progressPercent < 100) {
             card.progress.setProgress(item.progressPercent);
@@ -800,7 +809,32 @@ public class MainActivity extends Activity {
             try {
                 Uri uri = Uri.parse(uriStr);
                 String scheme = uri.getScheme();
-                if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
+                if ("package".equalsIgnoreCase(scheme) || "app".equalsIgnoreCase(scheme)) {
+                    String pkgName = uri.getSchemeSpecificPart();
+                    if (pkgName == null || pkgName.isEmpty()) pkgName = uri.getHost();
+                    if (pkgName != null && !pkgName.isEmpty()) {
+                        try {
+                            PackageManager pm = getPackageManager();
+                            Intent intent = pm.getLeanbackLaunchIntentForPackage(pkgName);
+                            if (intent == null) intent = pm.getLaunchIntentForPackage(pkgName);
+                            if (intent != null && intent.getComponent() != null) {
+                                Drawable[] art = AppAdapter.loadArtwork(this, intent.getComponent());
+                                Drawable d = (art != null && art[0] != null) ? art[0] : (art != null ? art[1] : null);
+                                if (d instanceof BitmapDrawable) {
+                                    bmp = ((BitmapDrawable) d).getBitmap();
+                                } else if (d != null) {
+                                    int w = Math.max(1, d.getIntrinsicWidth() > 0 ? d.getIntrinsicWidth() : Math.round(296f * density));
+                                    int h = Math.max(1, d.getIntrinsicHeight() > 0 ? d.getIntrinsicHeight() : Math.round(166f * density));
+                                    bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+                                    Canvas canvas = new Canvas(bmp);
+                                    d.setBounds(0, 0, w, h);
+                                    d.draw(canvas);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+                } else if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
                     File cache = new File(getCacheDir(), "ts_" + Integer.toHexString(uriStr.hashCode()) + ".jpg");
                     if (!cache.exists() || cache.length() == 0) {
                         HttpURLConnection conn = (HttpURLConnection) new URL(uriStr).openConnection();
@@ -839,6 +873,8 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 if (uriStr.equals(imgView.getTag())) {
                     if (res != null) {
+                        boolean isPortrait = res.getHeight() > (res.getWidth() * 1.15f);
+                        imgView.setScaleType(isPortrait ? ImageView.ScaleType.FIT_CENTER : ImageView.ScaleType.CENTER_CROP);
                         imgView.setImageBitmap(res);
                         imgView.setVisibility(View.VISIBLE);
                         if (watermarkView != null) watermarkView.setVisibility(View.GONE);

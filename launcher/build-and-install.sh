@@ -16,11 +16,11 @@ state="$("$ADB" -s "$TV_SERIAL" get-state 2>/dev/null || true)"
 [ "$state" = "device" ] || { echo "TV is not connected/authorized: $TV_SERIAL" >&2; exit 1; }
 APK="app/build/outputs/apk/debug/app-debug.apk"
 "$ADB" -s "$TV_SERIAL" install -r "$APK"
-"$ADB" -s "$TV_SERIAL" shell cmd package set-home-activity --user 0 com.gathin.tvhome/com.harolhome.tv.MainActivity
+"$ADB" -s "$TV_SERIAL" shell cmd package set-home-activity --user 0 com.harolhome.tv/com.harolhome.tv.MainActivity
 if [ "${GRANT_LOCATION:-0}" = 1 ]; then
-  "$ADB" -s "$TV_SERIAL" shell pm grant com.gathin.tvhome android.permission.ACCESS_FINE_LOCATION
+  "$ADB" -s "$TV_SERIAL" shell pm grant com.harolhome.tv android.permission.ACCESS_FINE_LOCATION
 fi
 if [ "${ENABLE_AUDIO_PAUSE:-0}" = 1 ]; then
-  "$ADB" -s "$TV_SERIAL" shell cmd notification allow_listener com.gathin.tvhome/com.harolhome.tv.MediaSessionListener
+  "$ADB" -s "$TV_SERIAL" shell cmd notification allow_listener com.harolhome.tv/com.harolhome.tv.MediaSessionListener
 fi
 echo "HarolHome updated. App data and the stock launcher were preserved."

@@ -8,7 +8,7 @@ Una pantalla de inicio personalizada y pensada para control remoto en Android TV
 
 HarolHome TV es una continuación personalizada y con nuevo nombre del proyecto público **Tv-Personalize**, creado por Harol Ardila: [github.com/harolito1995/Tv-Personalize](https://github.com/harolito1995/Tv-Personalize). Este repositorio conserva ese historial y reconoce el trabajo heredado. El nombre nuevo identifica esta versión personalizada; no afirma que el código se haya escrito desde cero ni oculta el proyecto público anterior.
 
-El paquete Java y sus carpetas usan `com.harolhome.tv`. El ID Android permanece como `com.gathin.tvhome` para actualizar la instalación existente del Caixun sin desinstalar ni perder datos; es un identificador de compatibilidad, no el nombre del producto.
+El paquete Java, las carpetas y el ID de la app son `com.harolhome.tv`. La versión 1.0 se instala como app nueva; no importa los datos del paquete anterior `com.gathin.tvhome`. La app antigua se conserva hasta comprobar la nueva.
 
 ## Capturas del televisor Caixun
 
@@ -21,7 +21,7 @@ Capturas reales del Caixun 4K con Android TV 14: la base visual de C1.3 Plan 4 y
 ## Funciones
 
 - Dock y cuadrícula de aplicaciones para control remoto, configurables por televisor.
-- Elementos de Continuar viendo cuando la aplicación publica datos compatibles con Android TV Watch Next.
+- Elementos de Continuar viendo con fallback dinámico inteligente: soporte para AOSP Watch Next con respaldo automático de aplicaciones recientes cuando las plataformas de streaming (Disney+, Netflix, etc.) no publican filas AOSP, detección automática de relación de aspecto (`FIT_CENTER` para carátulas verticales sin recortes en la imagen) y visualización limpia en dos renglones de título y subtítulo.
 - Cuatro temas, foco visible, búsqueda, filtros y vistas previas de temas y fondos.
 - Accesos a entradas, Wi-Fi y ajustes cuando el televisor ofrece actividades compatibles.
 - Pausa sesiones multimedia al volver a Home; se pueden excluir aplicaciones de música. Requiere acceso de listener de notificaciones para identificar sesiones.
