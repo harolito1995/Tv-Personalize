@@ -21,7 +21,8 @@ Real screenshots from the Caixun 4K Android TV 14 installation, showing the earl
 ## Features
 
 - Remote-friendly app dock and app grid, configurable for each TV.
-- Android TV Continue Watching entries with dynamic LRU fallback: keeps the shelf alive when streaming apps (Disney+, Netflix, etc.) do not emit AOSP records, automatically detects portrait poster aspect ratio (applies FIT_CENTER to prevent image cropping), and formats clean 2-line title and subtitle without truncation.
+- Cinematic and 100% dynamic Continue Watching: dual real-time automatic synchronization via AOSP Watch Next (`content://android.media.tv/watch_next_program`) and live `MediaSession` capture on return to Home (title, official scene artwork, season/episode subtitle, and real progress percentage without app-icon pollution), persistent cinematic cache, and portrait aspect ratio detection (`FIT_CENTER`).
+- Verified support for Kalley 43" TV (Android TV 14): dock app cards enlarged to 108dp (+20%), dynamic ambient backlight glow matching focused app brand colors, clean instant Home button navigation, and stock screensaver deactivation (see [Kalley adaptation guide](docs/KALLEY_ADAPTATION.md)).
 - Four visual themes, focus feedback, search, app filters, theme and wallpaper previews.
 - Shortcuts for TV inputs, Wi-Fi, and system settings where the device exposes compatible activities.
 - Pause active media sessions on return to Home; configured music apps can be exempted. Session-aware pause requires Android notification-listener access.
