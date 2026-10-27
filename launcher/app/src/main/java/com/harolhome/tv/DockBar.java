@@ -48,7 +48,7 @@ final class DockBar {
 
     interface Callbacks {
         /** A tile got focus; index is its position in the row. */
-        void onTileFocused(int index);
+        void onTileFocused(int index, int color);
 
         /** The row was rebuilt: tile views and ids changed, so re-apply any focus wiring. */
         void onRebuilt();
@@ -66,6 +66,7 @@ final class DockBar {
         ImageView art;
         ImageView glyph;
         boolean loading;
+        int ambientColor;
 
         Item(int kind, String label, ComponentName component) {
             this.kind = kind;
@@ -204,13 +205,29 @@ final class DockBar {
             if (focused) {
                 // Elevation controls Z-ordering. DO NOT call bringToFront() because
                 // in LinearLayout it removes and appends the child, reordering items!
-                callbacks.onTileFocused(items.indexOf(it));
+                int c = it.ambientColor;
+                if (c == 0) {
+                    Drawable d = it.banner != null ? it.banner : it.icon;
+                    if (d != null) {
+                        c = it.ambientColor = AppColorExtractor.getOrExtract(it.key, d, theme.accent);
+                    }
+                }
+                callbacks.onTileFocused(items.indexOf(it), c != 0 ? c : theme.accent);
             }
         });
     }
 
     private void bindArt(Item it) {
         if (it.art == null) return;
+        if (it.ambientColor == 0) {
+            Drawable d = it.banner != null ? it.banner : it.icon;
+            if (d != null) {
+                it.ambientColor = AppColorExtractor.getOrExtract(it.key, d, theme.accent);
+            }
+        }
+        if (it.tile != null && it.tile.isFocused()) {
+            callbacks.onTileFocused(items.indexOf(it), it.ambientColor != 0 ? it.ambientColor : theme.accent);
+        }
         if (it.banner != null) {
             // Leanback banners carry the complete 16:9 artwork, matching All apps.
             it.art.setImageDrawable(it.banner);

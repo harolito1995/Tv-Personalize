@@ -1,0 +1,47 @@
+# Kalley 43" (SCBC R3, MOKA, Realtek), Android TV 14 (SDK 34), 1280x720 @ 213 dpi. Stock launcher: com.google.android.tvlauncher
+#
+# Apply:   $env:TV_HOST='<tv ip>:5555'; tools\disable.ps1 examples\kalley-r3-harolhome\debloat.txt
+# Undo:    tools\restore.ps1 examples\kalley-r3-harolhome\debloat.txt
+# Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
+#
+# The stock launcher (com.google.android.tvlauncher) and com.google.android.tungsten.setupwraith are NOT listed:
+# on MOKA/Realtek Android 14 builds the firmware re-enables setupwraith at boot and with the stock launcher off
+# its RecoveryActivity can take Home (see examples/kalley-43g200/debloat.txt). HarolHome takes Home with its own
+# HomeKeyService (stock_home_redirect) instead of disabling the stock launcher.
+#
+# Firmware updaters (com.apps.ota, com.apps.authota) and TV/input/key handlers stay enabled.
+
+# Telemetry
+com.android.tv.feedbackconsent
+com.google.android.feedback
+
+# Android ad and personalisation services
+com.android.adservices.api
+com.android.ondevicepersonalization.services
+com.android.federatedcompute.services
+
+# Manufacturer content and preloads
+com.realtek.leanbacklauncher.partnercustomizer # partner config that injects apps and rows into the home screen
+com.google.android.play.games
+com.google.android.youtube.tvmusic
+com.creative.fastscreen.tv
+com.apps.esticker
+com.mk.tv.meeting.service
+com.apps.logapp
+com.apps.function.gdpr
+
+# Not needed on a TV
+com.android.healthconnect.controller
+com.android.health.connect.backuprestore
+com.apps.wifihotspot
+com.android.printspooler
+com.android.htmlviewer
+com.apps.atsc # ATSC tuner; Colombia broadcasts DVB-T2 (com.apps.dtv stays)
+
+# Stock screensaver: HarolHome has its own (ClockDream / DreamPhotoActivity)
+com.google.android.backdrop
+
+# KEEP: com.google.android.tvlauncher, com.google.android.tungsten.setupwraith, com.apps.ota, com.apps.authota,
+#       com.apps.sys, com.mk.service.tvmidware, the key handlers (com.realtek.android.globalkeyhandler,
+#       com.apps.virtualkey, com.mk.tv.fivekey, com.apps.smartkey, com.realtek.keyinterceptserver),
+#       com.apps.bluetoothremote, com.apps.dtv, com.apps.atv, com.apps.passthrough, every com.realtek.tv*.

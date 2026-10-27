@@ -41,3 +41,10 @@ Thumbs.db
 # Device-specific artifacts and backups stay local and out of Git
 /artifacts/
 /backups/
+
+# Python virtual environments & bytecode
+tools/venv/
+.venv/
+__pycache__/
+*.pyc
+tools/cleanyourtv_src/

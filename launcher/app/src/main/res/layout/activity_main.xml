@@ -29,6 +29,14 @@
         android:importantForAccessibility="no"
         android:visibility="gone" />
 
+    <!-- Dynamic ambient glow in the vivid color of the focused app (active when no wallpaper is set) -->
+    <View
+        android:id="@+id/ambient"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:importantForAccessibility="no" />
+
     <View
         android:id="@+id/scrimTop"
         android:layout_width="match_parent"
@@ -215,7 +223,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
+            android:gravity="top"
             android:clipChildren="false"
             android:clipToPadding="false" />
 

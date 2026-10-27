@@ -17,6 +17,10 @@ import android.graphics.ImageDecoder;
 import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.animation.ArgbEvaluator;
+import android.animation.ValueAnimator;
+import android.graphics.RadialGradient;
+import android.graphics.Shader;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
@@ -135,6 +139,9 @@ public class MainActivity extends Activity {
     private final ShelfCard[] shelf = new ShelfCard[2];
 
     private android.widget.FrameLayout root;
+    private View ambient;
+    private int ambientColor;
+    private ValueAnimator ambientAnimator;
     private View scrimTop;
     private View scrimBottom;
     private android.widget.TextClock clock;
@@ -245,6 +252,7 @@ public class MainActivity extends Activity {
         audioGuard = new BackgroundAudioGuard(this);
 
         root = findViewById(R.id.root);
+        ambient = findViewById(R.id.ambient);
         scrimTop = findViewById(R.id.scrimTop);
         scrimBottom = findViewById(R.id.scrimBottom);
         clock = findViewById(R.id.clock);
@@ -321,8 +329,9 @@ public class MainActivity extends Activity {
         // ---- dock ----
         dock = new DockBar(this, (LinearLayout) findViewById(R.id.dockRow), new DockBar.Callbacks() {
             @Override
-            public void onTileFocused(int index) {
+            public void onTileFocused(int index, int color) {
                 if (index >= 0) lastDock = index;
+                transitionAmbient(color);
             }
 
             @Override
@@ -333,14 +342,26 @@ public class MainActivity extends Activity {
 
         // ---- header and bottom actions ----
         btnInputs.setOnClickListener(v -> showInputs());
-        btnWifi.setOnClickListener(v -> open(new Intent(Settings.ACTION_WIFI_SETTINGS)));
-        btnSettings.setOnClickListener(v -> open(new Intent(Settings.ACTION_SETTINGS)));
+        btnWifi.setOnClickListener(v -> open(SystemSettings.intent(this, Settings.ACTION_WIFI_SETTINGS)));
+        btnSettings.setOnClickListener(v -> open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
         btnApps.setOnClickListener(v -> startActivity(new Intent(this, AllAppsActivity.class)));
         btnSearch.setOnClickListener(v -> openSearch());
         btnPersonalize.setOnClickListener(v -> startActivity(new Intent(this, PersonalizeActivity.class)));
         btnThemes.setOnClickListener(v -> startActivity(new Intent(this, PersonalizeActivity.class)
                 .putExtra(PersonalizeActivity.EXTRA_FOCUS_THEMES, true)));
         btnWeather.setOnClickListener(v -> showWeather());
+        View.OnFocusChangeListener ambientFadeListener = (v, focused) -> {
+            if (focused) fadeOutAmbient();
+        };
+        btnInputs.setOnFocusChangeListener(ambientFadeListener);
+        btnWifi.setOnFocusChangeListener(ambientFadeListener);
+        btnSettings.setOnFocusChangeListener(ambientFadeListener);
+        if (weatherPill != null) weatherPill.setOnFocusChangeListener(ambientFadeListener);
+        btnApps.setOnFocusChangeListener(ambientFadeListener);
+        btnSearch.setOnFocusChangeListener(ambientFadeListener);
+        btnPersonalize.setOnFocusChangeListener(ambientFadeListener);
+        btnThemes.setOnFocusChangeListener(ambientFadeListener);
+        btnWeather.setOnFocusChangeListener(ambientFadeListener);
         wireStaticNavigation();
 
         if (!TopShelfStore.hasWatchNextPermission(this)) {
@@ -453,6 +474,7 @@ public class MainActivity extends Activity {
             lastLaunchTapRealtimeMs = 0L;
         }
         wasStopped = true;
+        stopAmbientAnimation();
         unregisterWatchNextObserver();
         handler.removeCallbacks(wallpaperRecheck);
         if (mediaReceiverRegistered) {
@@ -634,6 +656,7 @@ public class MainActivity extends Activity {
     private void setupShelfCard(ShelfCard card, int slot) {
         roundClip(card.frame, getResources().getDimension(R.dimen.top_shelf_card_radius));
         card.root.setOnFocusChangeListener((v, focused) -> {
+            if (focused) fadeOutAmbient();
             float scale = focused ? 1.035f : 1.0f;
             card.frame.animate().scaleX(scale).scaleY(scale)
                     .translationZ(focused ? 6f * density : 0f)
@@ -1018,11 +1041,81 @@ public class MainActivity extends Activity {
     }
 
     /** The aurora only needs to paint when no opaque wallpaper covers it. */
+    private boolean isWallpaperCovered() {
+        return (wallpaper != null && wallpaper.getVisibility() == View.VISIBLE)
+                || (wallpaperVideo != null && wallpaperVideo.getVisibility() == View.VISIBLE);
+    }
+
     private void updateRootBackground() {
-        boolean covered = wallpaper.getVisibility() == View.VISIBLE
-                || wallpaperVideo.getVisibility() == View.VISIBLE;
+        boolean covered = isWallpaperCovered();
         root.setBackground(covered ? null
                 : ThemeKit.fallback(this, LauncherTheme.byId(Prefs.theme(this))));
+        if (covered && ambient != null) {
+            stopAmbientAnimation();
+            ambient.animate().cancel();
+            ambient.setAlpha(0f);
+        }
+    }
+
+    private void setAmbient(int color) {
+        if (ambient == null) return;
+        ambientColor = color;
+        BitmapDrawable glow = (BitmapDrawable) ambient.getBackground();
+        if (glow == null) {
+            int w = 480;
+            int h = 270;
+            Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bmp);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setShader(new RadialGradient(
+                    w * 0.50f, h * 0.65f, w * 0.70f,
+                    new int[]{0x85FFFFFF, 0x2EFFFFFF, 0x00FFFFFF},
+                    new float[]{0f, 0.45f, 1f},
+                    Shader.TileMode.CLAMP));
+            canvas.drawRect(0, 0, w, h, paint);
+            glow = new BitmapDrawable(getResources(), bmp);
+            glow.setGravity(Gravity.FILL);
+            ambient.setBackground(glow);
+        }
+        glow.setTint(0xFF000000 | color);
+    }
+
+    private void transitionAmbient(int color) {
+        if (isWallpaperCovered()) {
+            if (ambient != null) ambient.setAlpha(0f);
+            return;
+        }
+        if (ambient == null) return;
+        stopAmbientAnimation();
+        ambient.animate().cancel();
+        if (color == ambientColor && ambient.getAlpha() > 0.95f) return;
+
+        if (ambientColor == 0 || ambient.getAlpha() < 0.05f) {
+            setAmbient(color);
+            ambient.animate().alpha(1f).setDuration(260).start();
+            return;
+        }
+
+        ambient.animate().alpha(1f).setDuration(200).start();
+        ambientAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), ambientColor, color);
+        ambientAnimator.setDuration(350);
+        ambientAnimator.addUpdateListener(anim -> setAmbient((int) anim.getAnimatedValue()));
+        ambientAnimator.start();
+    }
+
+    private void fadeOutAmbient() {
+        stopAmbientAnimation();
+        if (ambient != null) {
+            ambient.animate().cancel();
+            ambient.animate().alpha(0f).setDuration(300).start();
+        }
+    }
+
+    private void stopAmbientAnimation() {
+        if (ambientAnimator != null) {
+            ambientAnimator.cancel();
+            ambientAnimator = null;
+        }
     }
 
     // ---- wallpaper -------------------------------------------------------------------------------

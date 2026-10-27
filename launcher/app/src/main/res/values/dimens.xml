@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="screen_padding_horizontal">36dp</dimen>
+    <dimen name="screen_padding_horizontal">24dp</dimen>
     <dimen name="screen_padding_top">22dp</dimen>
     <dimen name="hero_start">72dp</dimen>
     <dimen name="tile_width">180dp</dimen>
@@ -17,13 +17,13 @@
     <dimen name="tool_label_gap">8dp</dimen>
 
     <!-- Dock tiles: compact 16:9 mini-banners, half the width of the All apps grid. -->
-    <dimen name="dock_tile_width">90dp</dimen>
-    <dimen name="dock_tile_height">51dp</dimen>
-    <dimen name="dock_home_tile_width">90dp</dimen>
-    <dimen name="dock_home_tile_height">51dp</dimen>
-    <dimen name="dock_cell_height">80dp</dimen>
-    <dimen name="dock_tile_radius">10dp</dimen>
-    <dimen name="dock_item_gap">4dp</dimen>
+    <dimen name="dock_tile_width">108dp</dimen>
+    <dimen name="dock_tile_height">61dp</dimen>
+    <dimen name="dock_home_tile_width">108dp</dimen>
+    <dimen name="dock_home_tile_height">61dp</dimen>
+    <dimen name="dock_cell_height">92dp</dimen>
+    <dimen name="dock_tile_radius">11dp</dimen>
+    <dimen name="dock_item_gap">3dp</dimen>
 
     <!-- Header buttons -->
     <dimen name="sphere_button_size">36dp</dimen>

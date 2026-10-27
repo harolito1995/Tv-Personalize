@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Stock launcher whose home screen is sent back to HarolHome (Android TV on MOKA/Realtek boards keeps
+         opening it on the Home key even when HarolHome is the Home app). The stock launcher stays enabled:
+         disabling it on these boards can boot-loop the TV. Leave empty to turn the redirect off. -->
+    <string name="stock_home_redirect" translatable="false">com.google.android.tvlauncher</string>
+    <string name="home_key_name">HarolHome Home button</string>
+    <string name="home_key_description">Makes the remote\'s Home button open HarolHome.</string>
+</resources>
