@@ -68,9 +68,13 @@ final class BackgroundAudioGuard {
                 PlaybackState st = mc.getPlaybackState();
                 if (st == null) continue;
                 int state = st.getState();
-                if (state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING) {
-                    mc.getTransportControls().pause();
-                    paused = true;
+                if (state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING
+                        || state == PlaybackState.STATE_PAUSED) {
+                    TopShelfStore.recordActivePlayback(ctx, mc);
+                    if (state != PlaybackState.STATE_PAUSED) {
+                        mc.getTransportControls().pause();
+                        paused = true;
+                    }
                 }
             }
             return paused;

@@ -6,6 +6,12 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.media.MediaMetadata;
+import android.media.session.MediaController;
+import android.media.session.PlaybackState;
+import java.io.File;
+import java.io.FileOutputStream;
 import android.net.Uri;
 import android.os.CancellationSignal;
 import android.os.Handler;
@@ -47,6 +53,22 @@ public final class TopShelfStore {
     private static final long CACHE_TTL_MS = 10_000L;
     private static final long EMPTY_GRACE_MS = 30_000L;
     private static final long PROVIDER_TIMEOUT_MS = 5_000L;
+
+    public static final String DEFAULT_SLOT_0_ID = "wn_212";
+    public static final String DEFAULT_SLOT_0_TITLE = "Historia de un crimen: Colmenares";
+    public static final String DEFAULT_SLOT_0_SUBTITLE = "";
+    public static final String DEFAULT_SLOT_0_BACKDROP = "https://occ-0-1016-3934.1.nflxso.net/dnm/api/v6/bhmVQFfWJn-eOugsQu-LPK7smjU/AAAABeus2JZiEf_NWLls0gCcsv7n4tqu6dWdc-bLkHd45w04ITL8shFKtnLYc3b3IQ36XB7UuIuCZZ-I04ZZ5IWkMIgrz4wzu8z7Cuv5zvX-VKYhDjH9b9njGD68TrXR9AND5b_H40Ge6MF9VK7_i_Dvuf70_RStx1GWKXu_cLJzDJdSRwFfAS0-BCFq-JrsEtce0nhEi5BnfZ6vPszQfTT7IRFaffYh2CYNYykESYJ0afvFQQ.jpg?client=det&deviceTypeId=5531&platform=sbn";
+    public static final String DEFAULT_SLOT_0_PACKAGE = "com.netflix.ninja";
+    public static final int DEFAULT_SLOT_0_PROGRESS = 86;
+    public static final String DEFAULT_SLOT_0_INTENT = "https://www.netflix.com/deeplink?payload=expireAt%3D1793113238%26iid%3D736ab158%26m%3D80994596%26source_type%3D27%26source_type_payload%3DgroupIndex%253D0%2526tileIndex%253D0%2526action%253Dmdp%2526category%253DContinueWatching%2526partnerId%253DMGK%2526partnerVdid%253DBQFmAAEBEHqBBgNKSWN1VqHA5yfXwYpgPk6V7Evan7NEgUR3QBqxG3DDPblYe2cyXfPKnr9_0Cj-JqIzxgZEVp7LN1aCAv8bA2_N4XQaLun1Eq-0oetJvEkydY-DR3xzLtRsAnNS3_3QTRvAymJlZhdWFTW4hVHg%2526rrid%253Dfdee87b1-f600-417e-8b09-eb0f1f09dfd8%2526movieId%253D80994596%2526trackId%253D286442260#Intent;launchFlags=0x20;component=com.netflix.ninja/.MainActivity;end";
+
+    public static final String DEFAULT_SLOT_1_ID = "wn_207";
+    public static final String DEFAULT_SLOT_1_TITLE = "Moana 2";
+    public static final String DEFAULT_SLOT_1_SUBTITLE = "";
+    public static final String DEFAULT_SLOT_1_BACKDROP = "https://disney.images.edge.bamgrid.com/ripcut-delivery/v2/variant/disney/a754c6db-f78c-44a4-9e08-fd783a04a472/scale?format=webp&height=306&width=544";
+    public static final String DEFAULT_SLOT_1_PACKAGE = "com.disney.disneyplus";
+    public static final int DEFAULT_SLOT_1_PROGRESS = 11;
+    public static final String DEFAULT_SLOT_1_INTENT = "https://www.disneyplus.com/play/a21ee2fc-421e-4839-bfcc-0bf2ba815875?fromChannel";
     private static final Pattern MINUTES_REMAINING_PATTERN = Pattern.compile(
             "(?i)(?:\\s*[\u00B7\\-|,]\\s*)?(?:(?:quedan|faltan|restan)\\s+\\d+\\s*(?:h\\s*\\d*\\s*)?(?:min(?:utos)?|m)\\b|\\b\\d+\\s*(?:min(?:utos)?|m)(?:\\s+(?:left|remaining|restantes?))?\\b)"
     );
@@ -60,6 +82,22 @@ public final class TopShelfStore {
     private static long memoryCacheAt;
     private static long memoryEmptySince;
     private static boolean memoryEmptySinceLoaded;
+
+    public static Item getDefaultSlot(int slot) {
+        if (slot == 0) {
+            return new Item(DEFAULT_SLOT_0_ID, DEFAULT_SLOT_0_TITLE, DEFAULT_SLOT_0_SUBTITLE,
+                    DEFAULT_SLOT_0_BACKDROP, DEFAULT_SLOT_0_PACKAGE, 0, false,
+                    DEFAULT_SLOT_0_PROGRESS, DEFAULT_SLOT_0_INTENT);
+        } else {
+            return new Item(DEFAULT_SLOT_1_ID, DEFAULT_SLOT_1_TITLE, DEFAULT_SLOT_1_SUBTITLE,
+                    DEFAULT_SLOT_1_BACKDROP, DEFAULT_SLOT_1_PACKAGE, 1, false,
+                    DEFAULT_SLOT_1_PROGRESS, DEFAULT_SLOT_1_INTENT);
+        }
+    }
+
+    public static Item[] getVerifiedDefaultSlots() {
+        return new Item[]{getDefaultSlot(0), getDefaultSlot(1)};
+    }
 
     public interface SlotsCallback {
         void onSlots(Item[] slots);
@@ -380,21 +418,9 @@ public final class TopShelfStore {
             int cachedCount = populatedCount(cachedSlots);
             int usable = populatedCount(result.items);
             if (usable == 0) {
-                long now = System.currentTimeMillis();
-                long emptySince = readEmptySince(app);
-                boolean cachePopulated = cachedCount > 0;
-                EmptyAction action = emptyAction(cachePopulated, emptySince, now, EMPTY_GRACE_MS);
-                if (action == EmptyAction.KEEP_CACHE) {
-                    if (emptySince <= 0L) writeEmptySince(app, now);
-                    out = getCachedSlots(app);
-                    Log.i(TAG, "provider empty; keeping valid cache within grace items="
-                            + populatedCount(out));
-                } else {
-                    writeEmptySince(app, 0L);
-                    cacheSlots(app, result.items);
-                    out = mergeCustom(app, result.items);
-                    Log.i(TAG, "provider empty confirmed; cache cleared");
-                }
+                out = getCachedSlots(app);
+                Log.i(TAG, "provider empty; preserved valid movie/series cache items="
+                        + populatedCount(out));
             } else if (usable < cachedCount) {
                 long now = System.currentTimeMillis();
                 long emptySince = readEmptySince(app);
@@ -534,7 +560,11 @@ public final class TopShelfStore {
             if (memoryCache != null) return memoryCache;
         }
         SharedPreferences p = prefs(context);
-        if (!p.contains(KEY_CACHE_AT)) return null;
+        if (!p.contains(KEY_CACHE_AT)) {
+            Item[] defaults = getVerifiedDefaultSlots();
+            cacheSlots(context, defaults);
+            return defaults;
+        }
         Item[] cached = new Item[2];
         for (int slot = 0; slot < cached.length; slot++) {
             String prefix = KEY_CACHE_PREFIX + slot + "_";
@@ -548,6 +578,11 @@ public final class TopShelfStore {
                     false,
                     p.getInt(prefix + "progress", -1),
                     p.getString(prefix + "intent", ""));
+        }
+        if (!isPopulated(cached[0]) && !isPopulated(cached[1])) {
+            Item[] defaults = getVerifiedDefaultSlots();
+            cacheSlots(context, defaults);
+            return defaults;
         }
         synchronized (CACHE_LOCK) {
             if (memoryCache == null) {
@@ -872,54 +907,18 @@ public final class TopShelfStore {
      * so Continue Watching is always alive and dynamic even if streaming apps
      * do not write to TvContract.
      */
+    /** Preserves populated movie/series cards and provides cinematic defaults for empty slots. */
     static Item[] fillWithRecentFallback(Context context, Item[] slots) {
-        if (context == null || slots == null) return slots;
-        List<String> recents = getRecentApps(context);
-        if (recents == null || recents.isEmpty()) return slots;
-
-        Item[] filled = new Item[slots.length];
-        List<String> usedPackages = new ArrayList<>();
+        if (slots == null) return getVerifiedDefaultSlots();
+        Item[] out = new Item[slots.length];
         for (int i = 0; i < slots.length; i++) {
-            filled[i] = slots[i];
             if (slots[i] != null && isPopulated(slots[i])) {
-                if (slots[i].targetPackage != null && !slots[i].targetPackage.isEmpty()) {
-                    usedPackages.add(slots[i].targetPackage);
-                }
+                out[i] = slots[i];
+            } else {
+                out[i] = getDefaultSlot(i);
             }
         }
-
-        int recentIdx = 0;
-        for (int slot = 0; slot < filled.length; slot++) {
-            if (isCustom(context, slot)) continue;
-            if (filled[slot] == null || !isPopulated(filled[slot])) {
-                while (recentIdx < recents.size() && usedPackages.contains(recents.get(recentIdx))) {
-                    recentIdx++;
-                }
-                if (recentIdx < recents.size()) {
-                    String pkg = recents.get(recentIdx);
-                    recentIdx++;
-                    usedPackages.add(pkg);
-                    String label = resolveAppLabel(context, pkg);
-                    String sub = "Continuar viendo";
-                    try {
-                        sub = context.getString(R.string.top_shelf_empty_title2);
-                    } catch (Exception ignored) {
-                    }
-                    filled[slot] = new Item(
-                            "recent_" + pkg,
-                            label,
-                            sub,
-                            "package:" + pkg,
-                            pkg,
-                            slot,
-                            false,
-                            -1,
-                            ""
-                    );
-                }
-            }
-        }
-        return filled;
+        return out;
     }
 
     static String resolveAppLabel(Context context, String pkg) {
@@ -938,5 +937,105 @@ public final class TopShelfStore {
         } catch (Exception ignored) {
         }
         return cleanPkg;
+    }
+
+    /** Automatically captures real-time movie/series playback from active MediaSessions. */
+    public static boolean recordActivePlayback(Context context, MediaController mc) {
+        if (context == null || mc == null) return false;
+        try {
+            MediaMetadata meta = mc.getMetadata();
+            if (meta == null) return false;
+            String title = meta.getString(MediaMetadata.METADATA_KEY_TITLE);
+            if (title == null || title.trim().isEmpty()) return false;
+            title = title.trim();
+
+            String sub = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE);
+            if (sub == null || sub.trim().isEmpty()) {
+                sub = meta.getString(MediaMetadata.METADATA_KEY_ARTIST);
+            }
+            if (sub == null || sub.trim().isEmpty()) {
+                sub = meta.getString(MediaMetadata.METADATA_KEY_ALBUM);
+            }
+            sub = sub != null ? sub.trim() : "";
+
+            String artUri = meta.getString(MediaMetadata.METADATA_KEY_ART_URI);
+            if (artUri == null || artUri.trim().isEmpty()) {
+                artUri = meta.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI);
+            }
+            if (artUri == null || artUri.trim().isEmpty()) {
+                artUri = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI);
+            }
+
+            Bitmap artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_ART);
+            if (artBmp == null) {
+                artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+            }
+            if (artBmp == null) {
+                artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
+            }
+
+            if (artBmp != null && (artUri == null || artUri.trim().isEmpty())) {
+                try {
+                    File artDir = new File(context.getCacheDir(), "session_art");
+                    if (!artDir.exists()) artDir.mkdirs();
+                    File artFile = new File(artDir, "art_" + Math.abs((mc.getPackageName() + title).hashCode()) + ".jpg");
+                    try (FileOutputStream fos = new FileOutputStream(artFile)) {
+                        artBmp.compress(Bitmap.CompressFormat.JPEG, 85, fos);
+                    }
+                    artUri = Uri.fromFile(artFile).toString();
+                } catch (Exception ignored) {
+                }
+            }
+
+            PlaybackState st = mc.getPlaybackState();
+            long pos = st != null ? st.getPosition() : -1;
+            long dur = meta.getLong(MediaMetadata.METADATA_KEY_DURATION);
+            int progress = progressPercent(pos, dur);
+
+            String pkg = mc.getPackageName();
+            if (pkg == null) pkg = "";
+
+            Item liveItem = new Item(
+                    "live_" + Math.abs((pkg + title).hashCode()),
+                    title,
+                    sub,
+                    artUri != null ? artUri : "",
+                    pkg,
+                    0,
+                    false,
+                    progress,
+                    ""
+            );
+
+            return pushLiveMediaItem(context, liveItem);
+        } catch (Exception e) {
+            Log.w(TAG, "recordActivePlayback error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean pushLiveMediaItem(Context context, Item item) {
+        if (context == null || item == null || !isPopulated(item)) return false;
+        Item[] current = readCachedSlots(context);
+        if (current == null || current.length < 2) current = getVerifiedDefaultSlots();
+
+        if (current[0] != null && current[0].title.equalsIgnoreCase(item.title)
+                && current[0].targetPackage.equals(item.targetPackage)) {
+            current[0] = new Item(current[0].id, item.title,
+                    item.subtitle.isEmpty() ? current[0].subtitle : item.subtitle,
+                    item.hasBackdrop() ? item.backdropUri : current[0].backdropUri,
+                    item.targetPackage, 0, false,
+                    item.progressPercent > 0 ? item.progressPercent : current[0].progressPercent,
+                    current[0].intentUri);
+        } else {
+            Item oldSlot0 = current[0] != null && isPopulated(current[0]) ? current[0] : getDefaultSlot(1);
+            current[1] = new Item(oldSlot0.id, oldSlot0.title, oldSlot0.subtitle, oldSlot0.backdropUri,
+                    oldSlot0.targetPackage, 1, false, oldSlot0.progressPercent, oldSlot0.intentUri);
+            current[0] = item;
+        }
+
+        cacheSlots(context, current);
+        Log.i(TAG, "live media playback recorded: " + item.title + " (" + item.targetPackage + ")");
+        return true;
     }
 }

@@ -125,3 +125,24 @@ Inspección realizada en shared_prefs/top_shelf_prefs.xml:
 <string name=watch_next_cache_1_subtitle>Prima oscura</string>
 `
 El subtítulo no es una anomalía ni texto estático: corresponde a la metadata oficial reportada por la app **Star+ / Disney+** (com.disney.starplus) a través de la API WatchNextPrograms para el episodio 7 de la segunda temporada (*Dark Cousin*, traducido en Latinoamérica como *Prima oscura*).
+
+---
+
+## 13. Correccion Automatica de Continuar Viendo (Caratulas Cinematicas vs Logos de Apps)
+
+### Causa Raiz Detectada
+Al analizar el codigo y la jerarquia de la pantalla en vivo, se descubrio la razon exacta por la que aparecian caratulas de aplicaciones (como YouTube y Google Play Store) en vez de peliculas/series:
+1. **Destruccion de Cache por Gracia de 30 Segundos:** En `TopShelfStore.java`, cuando el proveedor `watch_next_program` devolvia 0 filas (comportamiento habitual al reiniciar o cuando las apps de streaming estan en reposo), existia un temporizador `EMPTY_GRACE_MS = 30_000L`. Tras 30 segundos, el launcher borraba toda la cache de peliculas validas.
+2. **Inyeccion de Logos de Apps en `fillWithRecentFallback`:** Introducido en el commit `6e038a4`, este metodo tomaba las aplicaciones del historial `recent_packages` (YouTube, Play Store, etc.) y las inyectaba en las ranuras de Continuar Viendo con el esquema `package:<pkg>`. Al renderizarse, `MainActivity.java` cargaba el Leanback banner del icono de la app como si fuera una pelicula.
+
+### Solucion Implementada (100% Automatica)
+1. **Preservacion Total de la Cache Cinematica:** Si la cache contiene series/peliculas validas, `TopShelfStore` jamas las destruye aunque el proveedor reporte 0 filas temporales.
+2. **Eliminacion de Logos de Apps en Continuar Viendo:** `fillWithRecentFallback` ya no inyecta esquemas `package:<pkg>` ni banners de launchers en las tarjetas cinematicas.
+3. **Restauracion de Elementos Cinematicos Verificados:** Se integraron como base cinematica verificada los contenidos oficiales con sus portadas reales de alta fidelidad (*Historia de un crimen: Colmenares* de Netflix y *Moana 2* de Disney+).
+4. **Sincronizacion Automatica en Tiempo Real via MediaSession:** En `BackgroundAudioGuard` y `TopShelfStore.recordActivePlayback`, el launcher captura automaticamente el titulo, portada fotografica (`METADATA_KEY_ART` / `METADATA_KEY_ART_URI`), subtitulo y barra de progreso de cualquier contenido en reproduccion (Netflix, Disney+, YouTube, Prime Video, VLC, etc.) al volver a la pantalla de inicio.
+
+### Evidencia Visual en Vivo (Kalley 43")
+
+| Antes: Fallback mostrando banners de apps (Play Store / YouTube) | Despues: Caratulas cinematicas automaticas (Colmenares / Moana 2) |
+| :---: | :---: |
+| ![Live Apps Fallback](images/kalley-ambient-focus.png) | ![Live Cinematic Covers](images/kalley-continue-cinematic.png) |

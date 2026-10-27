@@ -233,6 +233,18 @@ public class TopShelfStoreTest {
     }
 
     @Test
+    public void testVerifiedDefaultCinematicSlots() {
+        TopShelfStore.Item[] defaults = TopShelfStore.getVerifiedDefaultSlots();
+        assertEquals(2, defaults.length);
+        assertEquals(TopShelfStore.DEFAULT_SLOT_0_ID, defaults[0].id);
+        assertEquals("Historia de un crimen: Colmenares", defaults[0].title);
+        assertEquals("com.netflix.ninja", defaults[0].targetPackage);
+        assertEquals(TopShelfStore.DEFAULT_SLOT_1_ID, defaults[1].id);
+        assertEquals("Moana 2", defaults[1].title);
+        assertEquals("com.disney.disneyplus", defaults[1].targetPackage);
+    }
+
+    @Test
     public void testResolveAppLabelFallback() {
         assertEquals("com.netflix.ninja", TopShelfStore.resolveAppLabel(null, "com.netflix.ninja"));
         assertEquals("", TopShelfStore.resolveAppLabel(null, ""));
