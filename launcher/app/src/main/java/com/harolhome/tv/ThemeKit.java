@@ -4,15 +4,20 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.LinearGradient;
 import android.graphics.Outline;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Shader;
+import android.graphics.drawable.ClipDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.StateListDrawable;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
@@ -73,9 +78,17 @@ final class ThemeKit {
         String key = t.id + ":" + radiusPx;
         Drawable cached = CARDS.get(key);
         if (cached != null) return copy(cached, c);
+        float d = c.getResources().getDisplayMetrics().density;
         StateListDrawable sel = new StateListDrawable();
-        sel.addState(new int[]{android.R.attr.state_pressed}, solid(t.cardPressed, radiusPx));
-        sel.addState(new int[]{}, solid(t.card, radiusPx));
+        if (t.isLiquidGlass()) {
+            sel.addState(new int[]{android.R.attr.state_pressed},
+                    glassRect(radiusPx, d, 0xE62E3F57, 0xCC1E2B3D, 0x48, 0, 0, 0, 0f));
+            sel.addState(new int[]{},
+                    glassRect(radiusPx, d, 0xCC223042, 0xB3151F2E, 0x36, 0, 0, 0, 0f));
+        } else {
+            sel.addState(new int[]{android.R.attr.state_pressed}, solid(t.cardPressed, radiusPx));
+            sel.addState(new int[]{}, solid(t.card, radiusPx));
+        }
         CARDS.put(key, sel);
         return copy(sel, c);
     }
@@ -94,7 +107,7 @@ final class ThemeKit {
     static Drawable cardFocusForeground(Context c, LauncherTheme t, int radiusPx) {
         return new AdaptiveCardFocusDrawable(
                 t.cardFocusStroke, t.cardSelectedStroke, t.cardBorderIdle,
-                radiusPx, c.getResources().getDisplayMetrics().density);
+                radiusPx, c.getResources().getDisplayMetrics().density, t.isLiquidGlass());
     }
 
     /** A bounds-aware outline; its stroke reaches the card's exact outer silhouette. */
@@ -102,6 +115,8 @@ final class ThemeKit {
         private int drawableAlpha = 255;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF outline = new RectF();
+        private final RectF specRect = new RectF();
+        private final float density;
         private final float cornerRadiusPx;
         private final float focusStrokePx;
         private final float focusKeylinePx;
@@ -109,14 +124,17 @@ final class ThemeKit {
         private final int focusColor;
         private final int selectedColor;
         private final int idleColor;
+        private final boolean liquidGlass;
         private boolean focused;
         private boolean selected;
 
         AdaptiveCardFocusDrawable(int focusColor, int selectedColor, int idleColor,
-                                  int cornerRadiusPx, float density) {
+                                  int cornerRadiusPx, float density, boolean liquidGlass) {
             this.focusColor = focusColor;
             this.selectedColor = selectedColor;
             this.idleColor = idleColor;
+            this.density = density;
+            this.liquidGlass = liquidGlass;
             this.cornerRadiusPx = Math.max(0, cornerRadiusPx);
             this.focusStrokePx = Math.max(1f, 2f * density);
             this.focusKeylinePx = Math.max(focusStrokePx + 1f, 3.5f * density);
@@ -127,6 +145,7 @@ final class ThemeKit {
 
         @Override
         public void draw(Canvas canvas) {
+            if (!focused && !selected) return;
             Rect bounds = getBounds();
             float stroke = focused ? focusKeylinePx : quietStrokePx;
             float half = stroke * 0.5f;
@@ -137,18 +156,58 @@ final class ThemeKit {
             float radius = Math.min(cornerRadiusPx - half,
                     Math.min(outline.width(), outline.height()) * 0.5f);
             radius = Math.max(0f, radius);
+            if (liquidGlass) {
+                drawLiquidGlass(canvas, bounds, radius);
+                return;
+            }
+            paint.setShader(null);
             paint.setStrokeWidth(stroke);
-            int color = focused ? 0xD9000000 : selected ? selectedColor : idleColor;
+            int color = focused ? 0xD9000000 : selectedColor;
             int alpha = ((color >>> 24) * drawableAlpha) / 255;
             paint.setColor((color & 0x00FFFFFF) | (alpha << 24));
             canvas.drawRoundRect(outline, radius, radius, paint);
             if (focused) {
                 float brightStroke = focusStrokePx;
-                float brightHalf = brightStroke * 0.5f;
                 paint.setStrokeWidth(brightStroke);
                 int focusAlpha = ((focusColor >>> 24) * drawableAlpha) / 255;
                 paint.setColor((focusColor & 0x00FFFFFF) | (focusAlpha << 24));
                 canvas.drawRoundRect(outline, radius, radius, paint);
+            }
+        }
+
+        private void drawLiquidGlass(Canvas canvas, Rect bounds, float radius) {
+            if (focused) {
+                for (int i = 1; i <= 2; i++) {
+                    float o = i * density;
+                    specRect.set(outline.left - o, outline.top - o, outline.right + o, outline.bottom + o);
+                    paint.setShader(null);
+                    paint.setStrokeWidth(i * 1.6f * density);
+                    int glowAlpha = (((0x28 / i) * drawableAlpha) / 255);
+                    paint.setColor((glowAlpha << 24) | (focusColor & 0x00FFFFFF));
+                    canvas.drawRoundRect(specRect, radius + o, radius + o, paint);
+                }
+                paint.setShader(null);
+                paint.setStrokeWidth(focusKeylinePx);
+                paint.setColor((((0xC8 * drawableAlpha) / 255) << 24));
+                canvas.drawRoundRect(outline, radius, radius, paint);
+
+                paint.setStrokeWidth(focusStrokePx);
+                paint.setAlpha(drawableAlpha);
+                paint.setShader(new LinearGradient(bounds.left, bounds.top, bounds.right, bounds.bottom,
+                        new int[]{0xFFFFFFFF, focusColor, 0xFF64D2FF},
+                        new float[]{0f, 0.52f, 1f}, Shader.TileMode.CLAMP));
+                canvas.drawRoundRect(outline, radius, radius, paint);
+                paint.setShader(null);
+                paint.setAlpha(255);
+            } else {
+                paint.setStrokeWidth(quietStrokePx);
+                paint.setAlpha(drawableAlpha);
+                paint.setShader(new LinearGradient(bounds.left, bounds.top, bounds.right, bounds.bottom,
+                        new int[]{0xCCFFFFFF, selectedColor, 0x9964D2FF},
+                        new float[]{0f, 0.48f, 1f}, Shader.TileMode.CLAMP));
+                canvas.drawRoundRect(outline, radius, radius, paint);
+                paint.setShader(null);
+                paint.setAlpha(255);
             }
         }
 
@@ -226,37 +285,47 @@ final class ThemeKit {
         int strokeFocus = Math.max(1, Math.round(1.25f * d));
 
         StateListDrawable sel = new StateListDrawable();
+        if (t.isLiquidGlass()) {
+            sel.addState(new int[]{-android.R.attr.state_enabled},
+                    glassRect(radius, d, 0x1AFFFFFF, 0x0DFFFFFF, 0x14, 0x28FFFFFF, 0x12FFFFFF, 0x209BE4FF, 1.0f));
+            sel.addState(new int[]{android.R.attr.state_focused},
+                    glassRect(radius, d, 0xEB354C66, 0xD91E2D40, 0x5C, 0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.5f));
+            sel.addState(new int[]{android.R.attr.state_pressed},
+                    glassRect(radius, d, 0xF03D5673, 0xE625374D, 0x50, 0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.25f));
+            sel.addState(new int[]{},
+                    glassRect(radius, d, t.pillFillTop, t.pillFillBottom, 0x46, 0xC4FFFFFF, 0x3DFFFFFF, 0x8C64D2FF, 1.0f));
+        } else {
+            // Disabled state
+            GradientDrawable disabled = new GradientDrawable();
+            disabled.setShape(GradientDrawable.RECTANGLE);
+            disabled.setCornerRadius(radius);
+            disabled.setColor((0x14 << 24) | (t.pillFillBottom & 0x00FFFFFF));
+            disabled.setStroke(strokeIdle, (0x18 << 24) | (t.pillStroke & 0x00FFFFFF));
+            sel.addState(new int[]{-android.R.attr.state_enabled}, disabled);
 
-        // Disabled state
-        GradientDrawable disabled = new GradientDrawable();
-        disabled.setShape(GradientDrawable.RECTANGLE);
-        disabled.setCornerRadius(radius);
-        disabled.setColor((0x14 << 24) | (t.pillFillBottom & 0x00FFFFFF));
-        disabled.setStroke(strokeIdle, (0x18 << 24) | (t.pillStroke & 0x00FFFFFF));
-        sel.addState(new int[]{-android.R.attr.state_enabled}, disabled);
+            // Focused state: matte theme surface with a quiet neutral rim
+            GradientDrawable focused = new GradientDrawable();
+            focused.setShape(GradientDrawable.RECTANGLE);
+            focused.setCornerRadius(radius);
+            focused.setColor(t.controlFocusFill);
+            focused.setStroke(strokeFocus, t.controlFocusStroke);
+            sel.addState(new int[]{android.R.attr.state_focused}, focused);
 
-        // Focused state: matte theme surface with a quiet neutral rim
-        GradientDrawable focused = new GradientDrawable();
-        focused.setShape(GradientDrawable.RECTANGLE);
-        focused.setCornerRadius(radius);
-        focused.setColor(t.controlFocusFill);
-        focused.setStroke(strokeFocus, t.controlFocusStroke);
-        sel.addState(new int[]{android.R.attr.state_focused}, focused);
+            // Pressed state
+            GradientDrawable pressed = new GradientDrawable();
+            pressed.setShape(GradientDrawable.RECTANGLE);
+            pressed.setCornerRadius(radius);
+            pressed.setColor(t.controlFocusFill);
+            pressed.setStroke(strokeIdle, t.controlFocusStroke);
+            sel.addState(new int[]{android.R.attr.state_pressed}, pressed);
 
-        // Pressed state
-        GradientDrawable pressed = new GradientDrawable();
-        pressed.setShape(GradientDrawable.RECTANGLE);
-        pressed.setCornerRadius(radius);
-        pressed.setColor(t.controlFocusFill);
-        pressed.setStroke(strokeIdle, t.controlFocusStroke);
-        sel.addState(new int[]{android.R.attr.state_pressed}, pressed);
-
-        // Normal resting state
-        GradientDrawable normal = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{t.pillFillTop, t.pillFillBottom});
-        normal.setCornerRadius(radius);
-        normal.setStroke(strokeIdle, t.pillStroke);
-        sel.addState(new int[]{}, normal);
+            // Normal resting state
+            GradientDrawable normal = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{t.pillFillTop, t.pillFillBottom});
+            normal.setCornerRadius(radius);
+            normal.setStroke(strokeIdle, t.pillStroke);
+            sel.addState(new int[]{}, normal);
+        }
 
         PILL_BGS.put(t.id, sel);
         return copy(sel, c);
@@ -322,23 +391,31 @@ final class ThemeKit {
         int strokeFocused = Math.max(1, Math.round(1.25f * d));
 
         StateListDrawable sel = new StateListDrawable();
+        if (t.isLiquidGlass()) {
+            sel.addState(new int[]{android.R.attr.state_focused},
+                    glassRect(radius, d, 0xEB354C66, 0xD91E2D40, 0x5C, 0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.5f));
+            sel.addState(new int[]{android.R.attr.state_pressed},
+                    glassRect(radius, d, 0xF03D5673, 0xE625374D, 0x50, 0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.25f));
+            sel.addState(new int[]{},
+                    glassRect(radius, d, 0x5464D2FF, 0x2664D2FF, 0x4A, 0xCCFFFFFF, 0x809BE4FF, 0xB364D2FF, 1.35f));
+        } else {
+            // Selected + Focused by D-pad: calm surface shift and a single neutral rim
+            GradientDrawable focused = new GradientDrawable();
+            focused.setShape(GradientDrawable.RECTANGLE);
+            focused.setCornerRadius(radius);
+            focused.setColor(t.controlFocusFill);
+            focused.setStroke(strokeFocused, t.controlFocusStroke);
+            sel.addState(new int[]{android.R.attr.state_focused}, focused);
+            sel.addState(new int[]{android.R.attr.state_pressed}, focused);
 
-        // Selected + Focused by D-pad: calm surface shift and a single neutral rim
-        GradientDrawable focused = new GradientDrawable();
-        focused.setShape(GradientDrawable.RECTANGLE);
-        focused.setCornerRadius(radius);
-        focused.setColor(t.controlFocusFill);
-        focused.setStroke(strokeFocused, t.controlFocusStroke);
-        sel.addState(new int[]{android.R.attr.state_focused}, focused);
-        sel.addState(new int[]{android.R.attr.state_pressed}, focused);
-
-        // Selected resting (unfocused): subtle accent-tinted surface with accent rim
-        GradientDrawable resting = new GradientDrawable();
-        resting.setShape(GradientDrawable.RECTANGLE);
-        resting.setCornerRadius(radius);
-        resting.setColor(t.chipSelectedFill);
-        resting.setStroke(strokeIdle, t.chipSelectedStroke);
-        sel.addState(new int[]{}, resting);
+            // Selected resting (unfocused): subtle accent-tinted surface with accent rim
+            GradientDrawable resting = new GradientDrawable();
+            resting.setShape(GradientDrawable.RECTANGLE);
+            resting.setCornerRadius(radius);
+            resting.setColor(t.chipSelectedFill);
+            resting.setStroke(strokeIdle, t.chipSelectedStroke);
+            sel.addState(new int[]{}, resting);
+        }
 
         CHIP_SELECTED.put(t.id, sel);
         return copy(sel, c);
@@ -389,20 +466,26 @@ final class ThemeKit {
         int strokeFocus = Math.max(1, Math.round(1.25f * d));
 
         StateListDrawable sel = new StateListDrawable();
+        if (t.isLiquidGlass()) {
+            sel.addState(new int[]{android.R.attr.state_focused},
+                    glassRect(radius, d, 0xEB1E2F47, 0xEB121E30, 0x3D, 0xFFFFFFFF, 0xB39BE4FF, 0xFF64D2FF, 1.5f));
+            sel.addState(new int[]{},
+                    glassRect(radius, d, 0xD9121D2E, 0xD90B121D, 0x2A, 0x80FFFFFF, 0x30FFFFFF, 0x529BE4FF, 1.0f));
+        } else {
+            GradientDrawable focused = new GradientDrawable();
+            focused.setShape(GradientDrawable.RECTANGLE);
+            focused.setCornerRadius(radius);
+            focused.setColor(t.surfaceInputFocused);
+            focused.setStroke(strokeFocus, t.controlFocusStroke);
+            sel.addState(new int[]{android.R.attr.state_focused}, focused);
 
-        GradientDrawable focused = new GradientDrawable();
-        focused.setShape(GradientDrawable.RECTANGLE);
-        focused.setCornerRadius(radius);
-        focused.setColor(t.surfaceInputFocused);
-        focused.setStroke(strokeFocus, t.controlFocusStroke);
-        sel.addState(new int[]{android.R.attr.state_focused}, focused);
-
-        GradientDrawable normal = new GradientDrawable();
-        normal.setShape(GradientDrawable.RECTANGLE);
-        normal.setCornerRadius(radius);
-        normal.setColor(t.surfaceInput);
-        normal.setStroke(strokeIdle, t.inputStrokeIdle);
-        sel.addState(new int[]{}, normal);
+            GradientDrawable normal = new GradientDrawable();
+            normal.setShape(GradientDrawable.RECTANGLE);
+            normal.setCornerRadius(radius);
+            normal.setColor(t.surfaceInput);
+            normal.setStroke(strokeIdle, t.inputStrokeIdle);
+            sel.addState(new int[]{}, normal);
+        }
 
         TEXT_FIELD_BGS.put(t.id, sel);
         return copy(sel, c);
@@ -429,6 +512,10 @@ final class ThemeKit {
     static Drawable dialogSurface(Context c, LauncherTheme t) {
         float d = c.getResources().getDisplayMetrics().density;
         int radius = c.getResources().getDimensionPixelSize(R.dimen.panel_radius);
+        if (t.isLiquidGlass()) {
+            return glassRect(radius, d, 0xEC162234, 0xF20D1624, 0x2C,
+                    0xB3FFFFFF, 0x38FFFFFF, 0x8C64D2FF, 1.15f);
+        }
         GradientDrawable g = new GradientDrawable();
         g.setShape(GradientDrawable.RECTANGLE);
         g.setCornerRadius(radius);
@@ -461,27 +548,35 @@ final class ThemeKit {
         if (cached != null) return copy(cached, c);
         float d = c.getResources().getDisplayMetrics().density;
         StateListDrawable sel = new StateListDrawable();
+        if (t.isLiquidGlass()) {
+            sel.addState(new int[]{android.R.attr.state_focused},
+                    glassOval(d, 0xEB354C66, 0xD91E2D40, 0x5C, 0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.5f));
+            sel.addState(new int[]{android.R.attr.state_pressed},
+                    glassOval(d, 0xF03D5673, 0xE625374D, 0x50, 0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.25f));
+            sel.addState(new int[]{},
+                    glassOval(d, t.pillFillTop, t.pillFillBottom, 0x48, 0xC4FFFFFF, 0x40FFFFFF, 0x8C64D2FF, 1.0f));
+        } else {
+            // Focused: high-contrast fill with 2dp crisp theme focus ring
+            GradientDrawable focused = new GradientDrawable();
+            focused.setShape(GradientDrawable.OVAL);
+            focused.setColor(t.controlFocusFill);
+            focused.setStroke(Math.max(1, Math.round(1.25f * d)), t.controlFocusStroke);
+            sel.addState(new int[]{android.R.attr.state_focused}, focused);
 
-        // Focused: high-contrast fill with 2dp crisp theme focus ring
-        GradientDrawable focused = new GradientDrawable();
-        focused.setShape(GradientDrawable.OVAL);
-        focused.setColor(t.controlFocusFill);
-        focused.setStroke(Math.max(1, Math.round(1.25f * d)), t.controlFocusStroke);
-        sel.addState(new int[]{android.R.attr.state_focused}, focused);
+            // Pressed: illuminated
+            GradientDrawable pressed = new GradientDrawable();
+            pressed.setShape(GradientDrawable.OVAL);
+            pressed.setColor(t.controlFocusFill);
+            pressed.setStroke(Math.max(1, Math.round(1f * d)), t.controlFocusStroke);
+            sel.addState(new int[]{android.R.attr.state_pressed}, pressed);
 
-        // Pressed: illuminated
-        GradientDrawable pressed = new GradientDrawable();
-        pressed.setShape(GradientDrawable.OVAL);
-        pressed.setColor(t.controlFocusFill);
-        pressed.setStroke(Math.max(1, Math.round(1f * d)), t.controlFocusStroke);
-        sel.addState(new int[]{android.R.attr.state_pressed}, pressed);
-
-        // Normal: frosted fill and subtle rim
-        GradientDrawable normal = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{t.pillFillTop, t.pillFillBottom});
-        normal.setShape(GradientDrawable.OVAL);
-        normal.setStroke(Math.max(1, (int) d), t.pillStroke);
-        sel.addState(new int[]{}, normal);
+            // Normal: frosted fill and subtle rim
+            GradientDrawable normal = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{t.pillFillTop, t.pillFillBottom});
+            normal.setShape(GradientDrawable.OVAL);
+            normal.setStroke(Math.max(1, (int) d), t.pillStroke);
+            sel.addState(new int[]{}, normal);
+        }
 
         SPHERE_BGS.put(t.id, sel);
         return copy(sel, c);
@@ -507,10 +602,15 @@ final class ThemeKit {
     /** Non-focusable header capsule background (e.g. Home weather summary pill). */
     static Drawable weatherCapsuleBackground(Context c, LauncherTheme t) {
         float d = c.getResources().getDisplayMetrics().density;
+        int radius = Math.round(14f * d);
+        if (t.isLiquidGlass()) {
+            return glassRect(radius, d, 0x46FFFFFF, 0x18FFFFFF, 0x42,
+                    0xB8FFFFFF, 0x36FFFFFF, 0x8064D2FF, 1.0f);
+        }
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{t.pillFillTop, t.pillFillBottom});
         g.setShape(GradientDrawable.RECTANGLE);
-        g.setCornerRadius(Math.round(14f * d));
+        g.setCornerRadius(radius);
         g.setStroke(Math.max(1, Math.round(1f * d)), t.pillStroke);
         return g;
     }
@@ -548,14 +648,22 @@ final class ThemeKit {
         int strokeFocus = Math.max(1, Math.round(1.25f * d));
 
         StateListDrawable sel = new StateListDrawable();
-
-        GradientDrawable focused = new GradientDrawable();
-        focused.setShape(GradientDrawable.RECTANGLE);
-        focused.setCornerRadius(radius);
-        focused.setColor(t.controlFocusFill);
-        focused.setStroke(strokeFocus, t.controlFocusStroke);
-        sel.addState(new int[]{android.R.attr.state_focused}, focused);
-        sel.addState(new int[]{android.R.attr.state_pressed}, focused);
+        if (t.isLiquidGlass()) {
+            sel.addState(new int[]{android.R.attr.state_focused},
+                    glassRect(radius, d, 0xEB354C66, 0xD91E2D40, 0x50,
+                            0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.35f));
+            sel.addState(new int[]{android.R.attr.state_pressed},
+                    glassRect(radius, d, 0xF03D5673, 0xE625374D, 0x48,
+                            0xFFFFFFFF, 0xCC9BE4FF, 0xFF64D2FF, 1.2f));
+        } else {
+            GradientDrawable focused = new GradientDrawable();
+            focused.setShape(GradientDrawable.RECTANGLE);
+            focused.setCornerRadius(radius);
+            focused.setColor(t.controlFocusFill);
+            focused.setStroke(strokeFocus, t.controlFocusStroke);
+            sel.addState(new int[]{android.R.attr.state_focused}, focused);
+            sel.addState(new int[]{android.R.attr.state_pressed}, focused);
+        }
 
         GradientDrawable normal = new GradientDrawable();
         normal.setShape(GradientDrawable.RECTANGLE);
@@ -593,15 +701,235 @@ final class ThemeKit {
         }
     }
 
-    /** Rounded surface used behind the preview's dock mock. */
+    /** Rounded surface used behind the Home dock and the preview's dock mock. */
     static Drawable dockBand(Context c, LauncherTheme t) {
         float d = c.getResources().getDisplayMetrics().density;
         int radius = c.getResources().getDimensionPixelSize(R.dimen.panel_radius);
+        if (t.isLiquidGlass()) {
+            return glassRect(radius, d, 0x52FFFFFF, 0x241B293D, 0x48,
+                    0xD9FFFFFF, 0x4DFFFFFF, 0xA664D2FF, 1.25f);
+        }
         GradientDrawable g = new GradientDrawable();
         g.setColor(t.dockBand);
         g.setStroke(Math.max(1, (int) d), t.dockEdge);
         g.setCornerRadius(radius);
         return g;
+    }
+
+    /** Themed 2dp horizontal progress bar for Continue Watching cards and previews. */
+    static Drawable progressBarDrawable(Context c, LauncherTheme t) {
+        float d = c.getResources().getDisplayMetrics().density;
+        float corner = 1.5f * d;
+
+        GradientDrawable track = new GradientDrawable();
+        track.setShape(GradientDrawable.RECTANGLE);
+        track.setColor(t.isLight() ? 0x330B1220 : 0x38FFFFFF);
+        track.setCornerRadius(corner);
+
+        int start = t.isLiquidGlass() ? 0xFFFAFDFE : t.accent;
+        int end = t.isLiquidGlass() ? t.accent : t.focusRing;
+        GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{start, end});
+        fill.setShape(GradientDrawable.RECTANGLE);
+        fill.setCornerRadius(corner);
+
+        ClipDrawable clip = new ClipDrawable(fill, Gravity.START, ClipDrawable.HORIZONTAL);
+        LayerDrawable layer = new LayerDrawable(new Drawable[]{track, clip});
+        layer.setId(0, android.R.id.background);
+        layer.setId(1, android.R.id.progress);
+        return layer;
+    }
+
+    /** High-contrast circular badge behind the active star icon on theme cards. */
+    static Drawable themeActiveBadgeBackground(Context c, LauncherTheme t) {
+        float d = c.getResources().getDisplayMetrics().density;
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.OVAL);
+        g.setColor(t.accent);
+        g.setStroke(Math.max(1, Math.round(d)), t.isLight() ? 0x400B1220 : 0xCCFFFFFF);
+        return g;
+    }
+
+    private static Drawable glassRect(int radiusPx, float density,
+                                      int fillTop, int fillBottom, int sheenAlpha,
+                                      int rimStart, int rimMid, int rimEnd, float strokeDp) {
+        return new LiquidGlassDrawable(new LiquidGlassDrawable.Spec(
+                false, radiusPx, density, fillTop, fillBottom, sheenAlpha, rimStart, rimMid, rimEnd, strokeDp));
+    }
+
+    private static Drawable glassOval(float density,
+                                      int fillTop, int fillBottom, int sheenAlpha,
+                                      int rimStart, int rimMid, int rimEnd, float strokeDp) {
+        return new LiquidGlassDrawable(new LiquidGlassDrawable.Spec(
+                true, 0f, density, fillTop, fillBottom, sheenAlpha, rimStart, rimMid, rimEnd, strokeDp));
+    }
+
+    /** Multi-layer optical glass surface: frosted body, top caustic dome sheen, inner rim and Fresnel stroke. */
+    private static final class LiquidGlassDrawable extends Drawable {
+        static final class Spec extends ConstantState {
+            final boolean oval;
+            final float cornerRadiusPx;
+            final float density;
+            final int fillTop;
+            final int fillBottom;
+            final int sheenAlpha;
+            final int rimStart;
+            final int rimMid;
+            final int rimEnd;
+            final float strokeDp;
+
+            Spec(boolean oval, float cornerRadiusPx, float density,
+                 int fillTop, int fillBottom, int sheenAlpha,
+                 int rimStart, int rimMid, int rimEnd, float strokeDp) {
+                this.oval = oval;
+                this.cornerRadiusPx = cornerRadiusPx;
+                this.density = density;
+                this.fillTop = fillTop;
+                this.fillBottom = fillBottom;
+                this.sheenAlpha = sheenAlpha;
+                this.rimStart = rimStart;
+                this.rimMid = rimMid;
+                this.rimEnd = rimEnd;
+                this.strokeDp = strokeDp;
+            }
+
+            @Override
+            public Drawable newDrawable() {
+                return new LiquidGlassDrawable(this);
+            }
+
+            @Override
+            public Drawable newDrawable(android.content.res.Resources res) {
+                return new LiquidGlassDrawable(this);
+            }
+
+            @Override
+            public int getChangingConfigurations() {
+                return 0;
+            }
+        }
+
+        private final Spec spec;
+        private final Paint bodyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint sheenPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint innerRimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint rimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF rect = new RectF();
+        private final RectF innerRect = new RectF();
+        private final RectF sheenRect = new RectF();
+        private final Path clipPath = new Path();
+        private int drawableAlpha = 255;
+        private int lastW = -1;
+        private int lastH = -1;
+
+        LiquidGlassDrawable(Spec spec) {
+            this.spec = spec;
+            bodyPaint.setStyle(Paint.Style.FILL);
+            sheenPaint.setStyle(Paint.Style.FILL);
+            innerRimPaint.setStyle(Paint.Style.STROKE);
+            innerRimPaint.setStrokeWidth(Math.max(1f, spec.density));
+            rimPaint.setStyle(Paint.Style.STROKE);
+            rimPaint.setStrokeJoin(Paint.Join.ROUND);
+            rimPaint.setStrokeWidth(spec.strokeDp > 0f ? Math.max(1f, spec.strokeDp * spec.density) : 0f);
+        }
+
+        @Override
+        protected void onBoundsChange(Rect bounds) {
+            super.onBoundsChange(bounds);
+            lastW = -1;
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            Rect b = getBounds();
+            int w = b.width();
+            int h = b.height();
+            if (w <= 0 || h <= 0) return;
+
+            float strokeW = rimPaint.getStrokeWidth();
+            float half = spec.strokeDp > 0f ? strokeW * 0.5f : 0f;
+            rect.set(b.left + half, b.top + half, b.right - half, b.bottom - half);
+            if (rect.width() <= 0f || rect.height() <= 0f) return;
+
+            float r = spec.oval
+                    ? Math.min(rect.width(), rect.height()) * 0.5f
+                    : Math.max(0f, Math.min(spec.cornerRadiusPx - half, Math.min(rect.width(), rect.height()) * 0.5f));
+
+            if (w != lastW || h != lastH) {
+                lastW = w;
+                lastH = h;
+                bodyPaint.setShader(new LinearGradient(b.left, b.top, b.left, b.bottom,
+                        spec.fillTop, spec.fillBottom, Shader.TileMode.CLAMP));
+                float sheenBottom = rect.top + rect.height() * 0.48f;
+                int sheenTopColor = (Math.max(0, Math.min(255, spec.sheenAlpha)) << 24) | 0x00FFFFFF;
+                sheenPaint.setShader(new LinearGradient(rect.left, rect.top, rect.left, sheenBottom,
+                        sheenTopColor, 0x00FFFFFF, Shader.TileMode.CLAMP));
+                if (spec.strokeDp > 0f) {
+                    innerRimPaint.setShader(new LinearGradient(rect.left, rect.top, rect.left,
+                            rect.top + rect.height() * 0.65f, 0x55FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+                    rimPaint.setShader(new LinearGradient(b.left, b.top, b.right, b.bottom,
+                            new int[]{spec.rimStart, spec.rimMid, spec.rimEnd},
+                            new float[]{0f, 0.48f, 1f}, Shader.TileMode.CLAMP));
+                }
+            }
+
+            bodyPaint.setAlpha(drawableAlpha);
+            if (spec.oval) canvas.drawOval(rect, bodyPaint);
+            else canvas.drawRoundRect(rect, r, r, bodyPaint);
+
+            if (spec.sheenAlpha > 0) {
+                clipPath.reset();
+                if (spec.oval) clipPath.addOval(rect, Path.Direction.CW);
+                else clipPath.addRoundRect(rect, r, r, Path.Direction.CW);
+                int saved = canvas.save();
+                canvas.clipPath(clipPath);
+                sheenRect.set(rect.left - rect.width() * 0.08f, rect.top - rect.height() * 0.14f,
+                        rect.right + rect.width() * 0.08f, rect.top + rect.height() * 0.52f);
+                sheenPaint.setAlpha(drawableAlpha);
+                canvas.drawOval(sheenRect, sheenPaint);
+                canvas.restoreToCount(saved);
+            }
+
+            if (spec.strokeDp > 0f) {
+                float inset = Math.max(1f, spec.density);
+                innerRect.set(rect.left + inset, rect.top + inset, rect.right - inset, rect.bottom - inset);
+                if (innerRect.width() > 0f && innerRect.height() > 0f) {
+                    innerRimPaint.setAlpha(drawableAlpha);
+                    float ir = Math.max(0f, r - inset);
+                    if (spec.oval) canvas.drawOval(innerRect, innerRimPaint);
+                    else canvas.drawRoundRect(innerRect, ir, ir, innerRimPaint);
+                }
+
+                rimPaint.setAlpha(drawableAlpha);
+                if (spec.oval) canvas.drawOval(rect, rimPaint);
+                else canvas.drawRoundRect(rect, r, r, rimPaint);
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            drawableAlpha = alpha;
+            invalidateSelf();
+        }
+
+        @Override
+        public void setColorFilter(ColorFilter colorFilter) {
+            bodyPaint.setColorFilter(colorFilter);
+            sheenPaint.setColorFilter(colorFilter);
+            innerRimPaint.setColorFilter(colorFilter);
+            rimPaint.setColorFilter(colorFilter);
+            invalidateSelf();
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
+
+        @Override
+        public ConstantState getConstantState() {
+            return spec;
+        }
     }
 
     /** Fresh instance of a cached prototype; a Drawable must not be shared between views. */

@@ -56,6 +56,9 @@
     <string name="move_right">Mover a la derecha</string>
     <string name="app_info">Información de la app</string>
     <string name="dock_full">El dock admite %1$d favoritos</string>
+    <string name="dock_add_app">Añadir app a favoritos</string>
+    <string name="favourite_added">Añadida a favoritos (%1$d/%2$d)</string>
+    <string name="favourite_removed">Quitada de favoritos (%1$d/%2$d)</string>
     <string name="cat_local">Locales</string>
     <string name="cat_all">Todo</string>
     <string name="catalog_loading">Cargando catálogo\u2026</string>
@@ -142,12 +145,13 @@
     <string name="theme_tagline_midnight">Vidrio casi negro con acento azul frío</string>
     <string name="theme_tagline_arctic">Superficies claras con acentos azules nítidos</string>
     <string name="theme_tagline_ember">Carbón cálido con luz ámbar</string>
+    <string name="theme_tagline_liquid_glass">Vidrio líquido estilo Apple con brillo especular</string>
     <string name="dock_style_applied">Estilo de dock aplicado</string>
 
     <!-- Top Shelf and Widgets -->
     <string name="top_shelf_title">&#x25B6;&#x0020;&#x0020;CONTINUAR VIENDO</string>
     <string name="top_shelf_empty_title">Sin reproducciones recientes</string>
-    <string name="top_shelf_empty_sub">Las aplicaciones compatibles aparecerÃ¡n aquÃ­</string>
+    <string name="top_shelf_empty_sub">Las aplicaciones compatibles aparecerán aquí</string>
     <string name="top_shelf_empty_title2">Continuar viendo</string>
 
     <string name="top_shelf_card_empty">Configurar tarjeta</string>
@@ -188,6 +192,7 @@
     <string name="nav_themes">Temas</string>
     <string name="custom_label">Personalizado</string>
     <string name="all_apps_count">%1$d aplicaciones</string>
+    <string name="all_apps_count_favs">%1$d apps · %2$d/%3$d ★</string>
 </resources>
 
 

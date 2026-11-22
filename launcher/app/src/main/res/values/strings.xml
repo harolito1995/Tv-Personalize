@@ -56,6 +56,9 @@
     <string name="move_right">Move right</string>
     <string name="app_info">App info</string>
     <string name="dock_full">The dock holds %1$d favourites</string>
+    <string name="dock_add_app">Add app to favourites</string>
+    <string name="favourite_added">Added to favourites (%1$d/%2$d)</string>
+    <string name="favourite_removed">Removed from favourites (%1$d/%2$d)</string>
     <string name="cat_local">Local</string>
     <string name="cat_all">All</string>
     <string name="catalog_loading">Loading catalogue\u2026</string>
@@ -142,10 +145,12 @@
     <string name="theme_name_midnight" translatable="false">Midnight Glass</string>
     <string name="theme_name_arctic" translatable="false">Arctic Light</string>
     <string name="theme_name_ember" translatable="false">Ember</string>
+    <string name="theme_name_liquid_glass" translatable="false">Liquid Glass</string>
     <string name="theme_tagline_aurora">Deep cinematic blue with turquoise light</string>
     <string name="theme_tagline_midnight">Near-black glass with a cool blue accent</string>
     <string name="theme_tagline_arctic">Bright surfaces with clear blue accents</string>
     <string name="theme_tagline_ember">Warm charcoal with amber light</string>
+    <string name="theme_tagline_liquid_glass">Apple-inspired crystal glass with specular sheen</string>
     <string name="dock_style_applied">Dock style applied</string>
 
     <!-- Top Shelf and Widgets -->
@@ -193,6 +198,7 @@
     <string name="nav_themes">Themes</string>
     <string name="custom_label">Custom</string>
     <string name="all_apps_count">%1$d apps</string>
+    <string name="all_apps_count_favs">%1$d apps · %2$d/%3$d ★</string>
 </resources>
 
 

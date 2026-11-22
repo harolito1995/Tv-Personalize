@@ -30,6 +30,7 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -52,6 +53,12 @@ final class DockBar {
 
         /** The row was rebuilt: tile views and ids changed, so re-apply any focus wiring. */
         void onRebuilt();
+
+        /** User chose to add an app from a tile menu while the dock has free slots. */
+        void onAddFavouriteRequested();
+
+        /** Dock became empty after removing the last pinned app. */
+        void onDockEmpty();
     }
 
     private static final class Item {
@@ -128,11 +135,11 @@ final class DockBar {
         row.removeAllViews();
 
         PackageManager pm = act.getPackageManager();
+        Set<String> installed = AppAdapter.installedLaunchablePackages(act);
         int apps = 0;
-        for (String stored : Prefs.favourites(act)) {
+        for (String pkg : Prefs.syncFavourites(act, installed, APP_SLOTS)) {
             if (apps >= APP_SLOTS) break;
-            String pkg = stored.contains("/") ? stored.substring(0, stored.indexOf('/')) : stored;
-            Intent launch = pm.getLeanbackLaunchIntentForPackage(pkg);
+            Intent launch = AppAdapter.launchIntentForPackage(pm, pkg);
             if (launch == null || launch.getComponent() == null) continue;
             ComponentName cn = launch.getComponent();
             if (indexOfKey(cn.flattenToShortString()) >= 0) continue;
@@ -267,10 +274,11 @@ final class DockBar {
         if (it.tile != null) {
             it.tile.animate().scaleX(0.97f).scaleY(0.97f).setDuration(60).start();
         }
-        Intent i = new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
-                .setComponent(it.component)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        Intent i = AppAdapter.launchIntentForPackage(act.getPackageManager(), it.pkg);
+        if (i == null) {
+            i = new Intent(Intent.ACTION_MAIN).setComponent(it.component);
+        }
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         long t0 = SystemClock.elapsedRealtime();
         try {
             act.startActivity(i);
@@ -296,22 +304,32 @@ final class DockBar {
         popup.setAnimationStyle(0);
         popup.setElevation(0f);
 
-        List<String> order = Prefs.favourites(act);
-        int index = order.indexOf(it.pkg);
+        final int index = items.indexOf(it);
+        Set<String> installed = AppAdapter.installedLaunchablePackages(act);
         if (index > 0) {
             addRow(rows, popup, R.drawable.ic_move_left, act.getString(R.string.move_left), () -> {
-                if (Prefs.moveFavourite(act, it.pkg, -1)) reloadAndFocus(it.key);
+                if (Prefs.moveFavourite(act, it.pkg, -1, installed, APP_SLOTS)) reloadAndFocus(it.key);
             });
         }
-        if (index >= 0 && index < order.size() - 1) {
+        if (index >= 0 && index < items.size() - 1) {
             addRow(rows, popup, R.drawable.ic_move_right, act.getString(R.string.move_right), () -> {
-                if (Prefs.moveFavourite(act, it.pkg, 1)) reloadAndFocus(it.key);
+                if (Prefs.moveFavourite(act, it.pkg, 1, installed, APP_SLOTS)) reloadAndFocus(it.key);
             });
+        }
+        if (items.size() < APP_SLOTS) {
+            addRow(rows, popup, R.drawable.ic_apps, act.getString(R.string.dock_add_app),
+                    callbacks::onAddFavouriteRequested);
         }
         addRow(rows, popup, R.drawable.ic_star, act.getString(R.string.remove_favourite), () -> {
-            Prefs.toggleFavourite(act, it.pkg, Integer.MAX_VALUE);   // it is a favourite, so this removes it
+            Prefs.toggleFavourite(act, it.pkg, APP_SLOTS, installed);
             reload();
-            focus(0);
+            Toast.makeText(act, act.getString(R.string.favourite_removed, size(), APP_SLOTS),
+                    Toast.LENGTH_SHORT).show();
+            if (size() > 0) {
+                focus(Math.min(Math.max(0, index), size() - 1));
+            } else {
+                callbacks.onDockEmpty();
+            }
         });
         addRow(rows, popup, R.drawable.ic_settings, act.getString(R.string.app_info), () -> {
             Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + it.pkg));
@@ -340,7 +358,7 @@ final class DockBar {
     private void reloadAndFocus(String key) {
         reload();
         final int idx = indexOfKey(key);
-        row.post(() -> focus(idx >= 0 ? idx : 1));
+        row.post(() -> focus(idx >= 0 ? idx : 0));
     }
 
     private void addRow(LinearLayout rows, PopupWindow popup, int iconRes, String title, Runnable action) {

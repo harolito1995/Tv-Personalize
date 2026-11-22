@@ -19,6 +19,10 @@ final class AppColorExtractor {
 
     private AppColorExtractor() {}
 
+    static void clearCache() {
+        CACHE.clear();
+    }
+
     static int getOrExtract(String key, Drawable live, int fallback) {
         if (key != null && !key.isEmpty()) {
             Integer cached = CACHE.get(key);

@@ -41,6 +41,7 @@ final class LauncherTheme {
     int chipSelectedFill, chipSelectedStroke, chipSelectedText;
     int chipSelectedFocusedFill, chipSelectedFocusedStroke, chipSelectedFocusedText;
     int surfaceDialog, surfaceInput, surfaceInputFocused, inputStrokeIdle;
+    boolean liquidGlass;
 
     private LauncherTheme(String id, int nameRes, int taglineRes) {
         this.id = id;
@@ -49,7 +50,7 @@ final class LauncherTheme {
     }
 
     private static final List<LauncherTheme> ALL = Collections.unmodifiableList(Arrays.asList(
-            aurora(), midnight(), arctic(), ember()));
+            aurora(), midnight(), arctic(), ember(), liquidGlass()));
 
     static List<LauncherTheme> all() {
         return ALL;
@@ -69,6 +70,11 @@ final class LauncherTheme {
         int g = (screenBg >> 8) & 0xFF;
         int b = screenBg & 0xFF;
         return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+    }
+
+    /** True for Apple-inspired multi-layer specular Liquid Glass surfaces and rims. */
+    boolean isLiquidGlass() {
+        return liquidGlass;
     }
 
     /** Deep cinematic blue with turquoise light. The original 3.2 identity. */
@@ -160,6 +166,30 @@ final class LauncherTheme {
         t.chipSelectedFill = 0x2EFF8A3D; t.chipSelectedStroke = 0x70FF8A3D; t.chipSelectedText = 0xFFFFF4EA;
         t.chipSelectedFocusedFill = t.controlFocusFill; t.chipSelectedFocusedStroke = t.controlFocusStroke; t.chipSelectedFocusedText = t.textPrimary;
         t.surfaceDialog = 0xF41B110C; t.surfaceInput = 0xCC110A07; t.surfaceInputFocused = 0xE6180E0A; t.inputStrokeIdle = 0x3DFFD9B3;
+        return t;
+    }
+
+    /** Apple-inspired translucent Liquid Glass with frosted crystal sheen and prismatic ice-cyan rim. */
+    private static LauncherTheme liquidGlass() {
+        LauncherTheme t = new LauncherTheme("liquidglass",
+                R.string.theme_name_liquid_glass, R.string.theme_tagline_liquid_glass);
+        t.liquidGlass = true;
+        t.bgTop = 0xFF0E1624; t.bgMid = 0xFF142133; t.bgBottom = 0xFF080D16;
+        t.accent = 0xFF64D2FF; t.accent2 = 0xFFA78BFA;
+        t.card = 0xB81C2636; t.cardPressed = 0xD92B3A50;
+        t.dockBand = 0x6B1D2736; t.dockEdge = 0x8CEAF6FF; t.screenBg = 0xFF0C121D;
+        t.pillFillTop = 0x4AFFFFFF; t.pillFillBottom = 0x1AFFFFFF; t.pillStroke = 0x66FFFFFF;
+        t.pillFocused = 0xF5F6FAFF; t.pillText = 0xFFF8FBFF; t.pillTextFocused = 0xFF0A101B;
+        t.textPrimary = 0xFFFAFDFE; t.textSecondary = 0xE8EAF2FA; t.textDim = 0xA8C8D8EC;
+        t.scrimTop = 0x73060B14; t.scrimMid = 0x4D060B14; t.scrimBottom = 0x99060B14;
+        t.heroShadow = 0x99000000;
+        t.glassGlow = 0xFF64D2FF; t.glassRim = 0xE6FFFFFF;
+        t.focusRing = 0xFF9BE4FF; t.cardBorderIdle = 0x40FFFFFF;
+        t.cardFocusStroke = t.focusRing; t.cardSelectedStroke = 0x809BE4FF;
+        t.controlFocusFill = 0xCC243447; t.controlFocusStroke = t.focusRing;
+        t.chipSelectedFill = 0x3864D2FF; t.chipSelectedStroke = 0x999BE4FF; t.chipSelectedText = 0xFFFAFDFE;
+        t.chipSelectedFocusedFill = t.controlFocusFill; t.chipSelectedFocusedStroke = t.controlFocusStroke; t.chipSelectedFocusedText = t.textPrimary;
+        t.surfaceDialog = 0xF0111A28; t.surfaceInput = 0xD90D1521; t.surfaceInputFocused = 0xEB152236; t.inputStrokeIdle = 0x52FFFFFF;
         return t;
     }
 }

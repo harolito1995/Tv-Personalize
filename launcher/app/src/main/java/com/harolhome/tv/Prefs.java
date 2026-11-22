@@ -6,7 +6,9 @@ import android.text.TextUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Runtime settings owned by the user: dock favourites and wallpaper. Seeded from
@@ -67,48 +69,122 @@ final class Prefs {
         migrateDock(c, p);
         String stored = p.getString(KEY_FAVOURITES, null);
         if (stored == null) {
-            List<String> seed = new ArrayList<>(
-                    Arrays.asList(c.getResources().getStringArray(R.array.dock_apps)));
+            List<String> seed = reconcileFavourites(
+                    Arrays.asList(c.getResources().getStringArray(R.array.dock_apps)), null, 0);
             setFavourites(c, seed);
             return seed;
         }
-        List<String> out = new ArrayList<>();
-        for (String pkg : TextUtils.split(stored, ",")) {
-            if (!pkg.trim().isEmpty()) out.add(pkg.trim());
+        return reconcileFavourites(Arrays.asList(TextUtils.split(stored, ",")), null, 0);
+    }
+
+    /** Reconciles favourites against installed packages and max dock slots, persisting if changed. */
+    static List<String> syncFavourites(Context c, Set<String> installed, int maxSlots) {
+        List<String> current = favourites(c);
+        List<String> cleaned = reconcileFavourites(current, installed, maxSlots);
+        if (!cleaned.equals(current)) {
+            setFavourites(c, cleaned);
         }
-        return out;
+        return cleaned;
+    }
+
+    /** Raw signature of persisted favourites for O(1) change detection across Activity resumes. */
+    static String favouritesSignature(Context c) {
+        SharedPreferences p = sp(c);
+        migrateDock(c, p);
+        String stored = p.getString(KEY_FAVOURITES, null);
+        return stored != null ? stored : TextUtils.join(",", favourites(c));
     }
 
     static void setFavourites(Context c, List<String> packages) {
-        sp(c).edit().putString(KEY_FAVOURITES, TextUtils.join(",", packages)).apply();
+        List<String> clean = reconcileFavourites(packages, null, 0);
+        sp(c).edit().putString(KEY_FAVOURITES, TextUtils.join(",", clean)).apply();
     }
 
     static boolean isFavourite(Context c, String pkg) {
-        return favourites(c).contains(pkg);
+        String clean = normalizePackage(pkg);
+        return !clean.isEmpty() && favourites(c).contains(clean);
     }
 
     /** Adds or removes the package; returns false when the dock is already full. */
     static boolean toggleFavourite(Context c, String pkg, int dockSize) {
-        List<String> list = favourites(c);
-        if (list.remove(pkg)) {
+        return toggleFavourite(c, pkg, dockSize, null);
+    }
+
+    /** Adds or removes the package after pruning non-installed ghost entries from the favourites list. */
+    static boolean toggleFavourite(Context c, String pkg, int dockSize, Set<String> installed) {
+        List<String> raw = favourites(c);
+        List<String> list = installed != null ? reconcileFavourites(raw, installed, dockSize) : new ArrayList<>(raw);
+        boolean pruned = !list.equals(raw);
+        boolean ok = toggleFavouriteInList(list, pkg, dockSize);
+        if (ok || pruned) {
             setFavourites(c, list);
-            return true;
         }
-        if (list.size() >= dockSize) return false;
-        list.add(pkg);
-        setFavourites(c, list);
-        return true;
+        return ok;
     }
 
     /** Moves a favourite one slot earlier or later; false when it cannot move (edge of the dock). */
     static boolean moveFavourite(Context c, String pkg, int delta) {
-        List<String> list = favourites(c);
+        return moveFavourite(c, pkg, delta, null, 0);
+    }
+
+    /** Reconciles favourites against installed apps before moving, avoiding invisible ghost swaps. */
+    static boolean moveFavourite(Context c, String pkg, int delta, Set<String> installed, int maxSlots) {
+        List<String> raw = favourites(c);
+        List<String> list = installed != null || maxSlots > 0
+                ? reconcileFavourites(raw, installed, maxSlots)
+                : new ArrayList<>(raw);
+        boolean pruned = !list.equals(raw);
+        boolean moved = moveFavouriteInList(list, pkg, delta);
+        if (moved || pruned) {
+            setFavourites(c, list);
+        }
+        return moved;
+    }
+
+    // ---- Pure JVM-testable favourite list operations ---------------------------------------------
+
+    static String normalizePackage(String raw) {
+        if (raw == null) return "";
+        String t = raw.trim();
+        int slash = t.indexOf('/');
+        return slash >= 0 ? t.substring(0, slash).trim() : t;
+    }
+
+    static List<String> reconcileFavourites(List<String> stored, Set<String> installed, int maxSlots) {
+        List<String> out = new ArrayList<>();
+        if (stored == null) return out;
+        Set<String> seen = new LinkedHashSet<>();
+        for (String raw : stored) {
+            String pkg = normalizePackage(raw);
+            if (pkg.isEmpty()) continue;
+            if (installed != null && !installed.contains(pkg)) continue;
+            if (seen.add(pkg)) {
+                out.add(pkg);
+                if (maxSlots > 0 && out.size() >= maxSlots) break;
+            }
+        }
+        return out;
+    }
+
+    static boolean toggleFavouriteInList(List<String> list, String rawPkg, int maxSlots) {
+        if (list == null) return false;
+        String pkg = normalizePackage(rawPkg);
+        if (pkg.isEmpty()) return false;
+        if (list.remove(pkg)) return true;
+        if (maxSlots > 0 && list.size() >= maxSlots) return false;
+        list.add(pkg);
+        return true;
+    }
+
+    static boolean moveFavouriteInList(List<String> list, String rawPkg, int delta) {
+        if (list == null || delta == 0) return false;
+        String pkg = normalizePackage(rawPkg);
+        if (pkg.isEmpty()) return false;
         int from = list.indexOf(pkg);
         int to = from + delta;
         if (from < 0 || to < 0 || to >= list.size()) return false;
         list.remove(from);
         list.add(to, pkg);
-        setFavourites(c, list);
         return true;
     }
 

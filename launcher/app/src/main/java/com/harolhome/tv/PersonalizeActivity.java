@@ -365,7 +365,7 @@ public class PersonalizeActivity extends Activity {
     // ---- Themes and interface --------------------------------------------------------------------
 
     private void applyThemeUi() {
-        findViewById(R.id.personalizeRoot).setBackgroundColor(theme.screenBg);
+        findViewById(R.id.personalizeRoot).setBackground(ThemeKit.fallback(this, theme));
         ((TextView) findViewById(R.id.title)).setTextColor(theme.textPrimary);
         for (int id : new int[]{R.id.labelThemes, R.id.labelInterface, R.id.labelWeather, R.id.labelDream,
                 R.id.labelWallpapers}) {
@@ -530,6 +530,9 @@ public class PersonalizeActivity extends Activity {
             name.setText(t.nameRes);
             name.setTextColor(t.textPrimary);
             ImageView badge = item.findViewById(R.id.themeBadge);
+            badge.setBackground(ThemeKit.themeActiveBadgeBackground(this, t));
+            badge.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    t.isLight() ? 0xFFFFFFFF : 0xFF0A101B));
             badge.setVisibility(t.id.equals(active) ? View.VISIBLE : View.GONE);
             View card = item.findViewById(R.id.themeCard);
             card.setId(View.generateViewId());
@@ -546,7 +549,7 @@ public class PersonalizeActivity extends Activity {
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (themeRail.getChildCount() > 0) lp.setMarginStart(dp(8));
+            if (themeRail.getChildCount() > 0) lp.setMarginStart(dp(4));
             themeRail.addView(item, lp);
             cards[i] = card;
         }

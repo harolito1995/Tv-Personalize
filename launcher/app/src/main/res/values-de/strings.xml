@@ -48,10 +48,15 @@
     <string name="preview_favorite_saved">In Favoriten gespeichert</string>
     <string name="preview_favorite_removed">Aus Favoriten entfernt</string>
     <string name="dock_style_applied">Dock-Stil angewendet</string>
+    <string name="theme_tagline_liquid_glass">Apple-inspiriertes Flüssigglas mit Spiegelglanz</string>
     <string name="nav_home">Startseite</string>
     <string name="nav_apps">Apps</string>
     <string name="nav_all_apps">Alle Apps</string>
     <string name="all_apps_title">Alle Apps</string>
     <string name="nav_search">Suche</string>
     <string name="nav_themes">Themen</string>
+    <string name="dock_add_app">App zu Favoriten hinzufügen</string>
+    <string name="favourite_added">Zu Favoriten hinzugefügt (%1$d/%2$d)</string>
+    <string name="favourite_removed">Aus Favoriten entfernt (%1$d/%2$d)</string>
+    <string name="all_apps_count_favs">%1$d Apps · %2$d/%3$d ★</string>
 </resources>

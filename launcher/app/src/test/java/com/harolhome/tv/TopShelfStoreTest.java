@@ -249,4 +249,28 @@ public class TopShelfStoreTest {
         assertEquals("com.netflix.ninja", TopShelfStore.resolveAppLabel(null, "com.netflix.ninja"));
         assertEquals("", TopShelfStore.resolveAppLabel(null, ""));
     }
+
+    @Test
+    public void testResolveDisplayBackdropCustomAppFallbackAndPortraitCheck() {
+        TopShelfStore.Item customNoImg = new TopShelfStore.Item(
+                "slot_0", "Stremio", "", "", "com.stremio.one", 0, true
+        );
+        assertEquals("package:com.stremio.one", TopShelfStore.resolveDisplayBackdrop(customNoImg));
+
+        TopShelfStore.Item customWithImg = new TopShelfStore.Item(
+                "slot_0", "Movie", "", "https://example.com/art.jpg", "com.netflix.ninja", 0, true
+        );
+        assertEquals("https://example.com/art.jpg", TopShelfStore.resolveDisplayBackdrop(customWithImg));
+
+        TopShelfStore.Item autoNoImg = new TopShelfStore.Item(
+                "slot_1", "Auto", "", "", "com.netflix.ninja", 1, false
+        );
+        assertEquals("", TopShelfStore.resolveDisplayBackdrop(autoNoImg));
+        assertEquals("", TopShelfStore.resolveDisplayBackdrop(null));
+
+        assertTrue(MainActivity.isPortraitArtwork(600, 900));
+        assertFalse(MainActivity.isPortraitArtwork(500, 281));
+        assertFalse(MainActivity.isPortraitArtwork(500, 500));
+        assertFalse(MainActivity.isPortraitArtwork(0, 900));
+    }
 }

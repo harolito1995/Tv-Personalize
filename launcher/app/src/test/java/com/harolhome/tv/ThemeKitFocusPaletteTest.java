@@ -12,9 +12,9 @@ import static org.junit.Assert.*;
 public class ThemeKitFocusPaletteTest {
 
     @Test
-    public void allFourThemesHaveValidFocusAndSurfaceTokens() {
+    public void allFiveThemesHaveValidFocusAndSurfaceTokens() {
         List<LauncherTheme> themes = LauncherTheme.all();
-        assertEquals(4, themes.size());
+        assertEquals(5, themes.size());
 
         for (LauncherTheme t : themes) {
             assertNotNull(t.id);
@@ -46,11 +46,14 @@ public class ThemeKitFocusPaletteTest {
         LauncherTheme aurora = LauncherTheme.byId("aurora");
         LauncherTheme ember = LauncherTheme.byId("ember");
         LauncherTheme arctic = LauncherTheme.byId("arctic");
+        LauncherTheme liquidGlass = LauncherTheme.byId("liquidglass");
 
         assertFalse(midnight.isLight());
         assertFalse(aurora.isLight());
         assertFalse(ember.isLight());
         assertTrue(arctic.isLight());
+        assertFalse(liquidGlass.isLight());
+        assertTrue(liquidGlass.isLiquidGlass());
     }
 
     @Test

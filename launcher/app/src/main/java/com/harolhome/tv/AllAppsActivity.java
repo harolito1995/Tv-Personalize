@@ -71,7 +71,7 @@ public class AllAppsActivity extends Activity implements AppAdapter.TileListener
     private void updateCount() {
         if (countView == null || adapter == null) return;
         int n = adapter.getItemCount();
-        countView.setText(getString(R.string.all_apps_count, n));
+        countView.setText(getString(R.string.all_apps_count_favs, n, adapter.getFavouriteCount(), DockBar.APP_SLOTS));
         countView.setVisibility(n > 0 ? View.VISIBLE : View.GONE);
     }
 

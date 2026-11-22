@@ -4,8 +4,11 @@ import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -89,6 +92,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     private final int unlabelledCount;
     /** Never shown as tiles (res/values/config.xml, hidden_apps). */
     private final Set<String> hidden;
+    private final Set<String> favouriteSet = new HashSet<>();
     private final List<Entry> items = new ArrayList<>();
     private LauncherTheme theme;
 
@@ -118,16 +122,60 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         theme = t;
     }
 
-    void reload() {
-        List<String> favourites = Prefs.favourites(ctx);
+    int getFavouriteCount() {
+        return favouriteSet.size();
+    }
+
+    static Intent launchIntentForPackage(PackageManager pm, String pkg) {
+        if (pm == null || pkg == null || pkg.isEmpty()) return null;
+        Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
+        if (i == null) i = pm.getLaunchIntentForPackage(pkg);
+        return i;
+    }
+
+    /** Leanback apps first, plus user-installed sideloaded apps that only declare CATEGORY_LAUNCHER. */
+    static List<ResolveInfo> queryLaunchableActivities(Context ctx, Set<String> hidden) {
         PackageManager pm = ctx.getPackageManager();
-        Intent probe = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        List<ResolveInfo> found = pm.queryIntentActivities(probe, 0);
-        List<Entry> fresh = new ArrayList<>();
-        for (ResolveInfo ri : found) {
+        String selfPkg = ctx.getPackageName();
+        Set<String> seen = new HashSet<>();
+        List<ResolveInfo> out = new ArrayList<>();
+
+        Intent leanback = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(leanback, 0)) {
             if (ri.activityInfo == null) continue;
             String pkg = ri.activityInfo.packageName;
-            if (pkg.equals(ctx.getPackageName()) || hidden.contains(pkg)) continue;
+            if (pkg.equals(selfPkg) || (hidden != null && hidden.contains(pkg))) continue;
+            if (seen.add(pkg)) out.add(ri);
+        }
+
+        Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(launcher, 0)) {
+            if (ri.activityInfo == null || ri.activityInfo.applicationInfo == null) continue;
+            if ((ri.activityInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+            String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(selfPkg) || (hidden != null && hidden.contains(pkg))) continue;
+            if (seen.add(pkg)) out.add(ri);
+        }
+        return out;
+    }
+
+    static Set<String> installedLaunchablePackages(Context ctx) {
+        Set<String> hiddenApps = new HashSet<>(Arrays.asList(ctx.getResources().getStringArray(R.array.hidden_apps)));
+        Set<String> pkgs = new HashSet<>();
+        for (ResolveInfo ri : queryLaunchableActivities(ctx, hiddenApps)) {
+            if (ri.activityInfo != null) pkgs.add(ri.activityInfo.packageName);
+        }
+        return pkgs;
+    }
+
+    void reload() {
+        PackageManager pm = ctx.getPackageManager();
+        List<ResolveInfo> found = queryLaunchableActivities(ctx, hidden);
+        Set<String> installedPkgs = new HashSet<>();
+        List<Entry> fresh = new ArrayList<>();
+        for (ResolveInfo ri : found) {
+            String pkg = ri.activityInfo.packageName;
+            installedPkgs.add(pkg);
             Entry e = new Entry(String.valueOf(ri.loadLabel(pm)),
                     new ComponentName(pkg, ri.activityInfo.name));
             Drawable[] cached = cacheGet(e.key);
@@ -139,6 +187,9 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             }
             fresh.add(e);
         }
+        List<String> favourites = Prefs.syncFavourites(ctx, installedPkgs, dockSize);
+        favouriteSet.clear();
+        favouriteSet.addAll(favourites);
         Collections.sort(fresh, (a, b) -> {
             int fa = favourites.indexOf(a.pkg), fb = favourites.indexOf(b.pkg);
             if (fa >= 0 || fb >= 0) {
@@ -166,10 +217,14 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                     new Intent(Intent.ACTION_MAIN)
                             .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                             .setComponent(component), 0);
-            if (ri == null || ri.activityInfo == null) return null;
-            Drawable banner = ri.activityInfo.loadBanner(pm);
-            if (banner == null) banner = ri.activityInfo.applicationInfo.loadBanner(pm);
-            Drawable icon = ri.loadIcon(pm);
+            ActivityInfo ai = (ri != null && ri.activityInfo != null) ? ri.activityInfo : null;
+            if (ai == null) {
+                ai = pm.getActivityInfo(component, 0);
+            }
+            if (ai == null) return null;
+            Drawable banner = ai.loadBanner(pm);
+            if (banner == null && ai.applicationInfo != null) banner = ai.applicationInfo.loadBanner(pm);
+            Drawable icon = ai.loadIcon(pm);
             if (banner == null && icon == null) return null;
             cachePut(component.flattenToShortString(), banner, icon);
             return new Drawable[]{banner, icon};
@@ -186,30 +241,20 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         ICON_CACHE.put(key, new Drawable[]{banner, icon});
     }
 
+    static synchronized void clearCache() {
+        ICON_CACHE.clear();
+    }
+
     private void scheduleLoad(final Entry e) {
         if (e.loading) return;
         e.loading = true;
         ICON_EXEC.execute(() -> {
-            Drawable banner = null, icon = null;
-            try {
-                PackageManager pm = ctx.getPackageManager();
-                ResolveInfo ri = pm.resolveActivity(
-                        new Intent(Intent.ACTION_MAIN)
-                                .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
-                                .setComponent(e.component), 0);
-                if (ri != null && ri.activityInfo != null) {
-                    banner = ri.activityInfo.loadBanner(pm);
-                    if (banner == null) banner = ri.activityInfo.applicationInfo.loadBanner(pm);
-                    icon = ri.loadIcon(pm);
-                }
-            } catch (Exception ignored) {
-            }
-            if (banner == null && icon == null) {
+            Drawable[] art = loadArtwork(ctx, e.component);
+            if (art == null) {
                 e.loading = false;
                 return;
             }
-            cachePut(e.key, banner, icon);
-            final Drawable fBanner = banner, fIcon = icon;
+            final Drawable fBanner = art[0], fIcon = art[1];
             MAIN.post(() -> {
                 int pos = positionOf(e.key);
                 if (pos < 0) return;
@@ -256,6 +301,14 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         h.name.setAlpha(focused ? 1f : 0f);
         h.card.setScaleX(focused ? FOCUS_SCALE : 1f);
         h.card.setScaleY(focused ? FOCUS_SCALE : 1f);
+        if (h.favBadge != null) {
+            if (favouriteSet.contains(e.pkg)) {
+                h.favBadge.setImageTintList(ColorStateList.valueOf(theme.accent));
+                h.favBadge.setVisibility(View.VISIBLE);
+            } else {
+                h.favBadge.setVisibility(View.GONE);
+            }
+        }
         if (e.banner != null) {
             h.banner.setImageDrawable(e.banner);
             h.banner.setVisibility(View.VISIBLE);
@@ -289,10 +342,17 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         popup.setAnimationStyle(0);
         popup.setElevation(0f);
 
-        boolean favourite = Prefs.isFavourite(ctx, e.pkg);
+        Set<String> installed = installedLaunchablePackages(ctx);
+        List<String> order = Prefs.syncFavourites(ctx, installed, dockSize);
+        boolean favourite = order.contains(e.pkg);
         addMenuRow(rows, popup, R.drawable.ic_star,
                 ctx.getString(favourite ? R.string.remove_favourite : R.string.add_favourite), () -> {
-                    if (Prefs.toggleFavourite(ctx, e.pkg, dockSize)) {
+                    if (Prefs.toggleFavourite(ctx, e.pkg, dockSize, installed)) {
+                        int nowCount = Prefs.syncFavourites(ctx, installed, dockSize).size();
+                        Toast.makeText(ctx,
+                                ctx.getString(favourite ? R.string.favourite_removed : R.string.favourite_added,
+                                        nowCount, dockSize),
+                                Toast.LENGTH_SHORT).show();
                         if (listener != null) listener.onFavouriteChanged(e.key);
                     } else {
                         Toast.makeText(ctx, ctx.getString(R.string.dock_full, dockSize),
@@ -300,18 +360,17 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                     }
                 });
         if (favourite) {
-            List<String> order = Prefs.favourites(ctx);
             int index = order.indexOf(e.pkg);
             if (index > 0) {
                 addMenuRow(rows, popup, R.drawable.ic_move_left, ctx.getString(R.string.move_left), () -> {
-                    if (Prefs.moveFavourite(ctx, e.pkg, -1) && listener != null) {
+                    if (Prefs.moveFavourite(ctx, e.pkg, -1, installed, dockSize) && listener != null) {
                         listener.onFavouriteChanged(e.key);
                     }
                 });
             }
             if (index >= 0 && index < order.size() - 1) {
                 addMenuRow(rows, popup, R.drawable.ic_move_right, ctx.getString(R.string.move_right), () -> {
-                    if (Prefs.moveFavourite(ctx, e.pkg, 1) && listener != null) {
+                    if (Prefs.moveFavourite(ctx, e.pkg, 1, installed, dockSize) && listener != null) {
                         listener.onFavouriteChanged(e.key);
                     }
                 });
@@ -356,10 +415,11 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     private void launch(Entry e) {
-        Intent i = new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
-                .setComponent(e.component)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        Intent i = launchIntentForPackage(ctx.getPackageManager(), e.pkg);
+        if (i == null) {
+            i = new Intent(Intent.ACTION_MAIN).setComponent(e.component);
+        }
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         long t0 = SystemClock.elapsedRealtime();
         try {
             ctx.startActivity(i);
@@ -462,6 +522,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         final View card;
         final ImageView banner;
         final ImageView icon;
+        final ImageView favBadge;
         final TextView label;
         final TextView name;
 
@@ -470,6 +531,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             card = v.findViewById(R.id.card);
             banner = v.findViewById(R.id.banner);
             icon = v.findViewById(R.id.icon);
+            favBadge = v.findViewById(R.id.favBadge);
             label = v.findViewById(R.id.label);
             name = v.findViewById(R.id.name);
 

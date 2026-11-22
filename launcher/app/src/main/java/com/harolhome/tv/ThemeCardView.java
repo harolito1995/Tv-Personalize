@@ -2,8 +2,11 @@ package com.harolhome.tv;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.RadialGradient;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -46,8 +49,18 @@ public class ThemeCardView extends View {
         // Fallback background surface.
         rect.set(0, 0, w, h);
         paint.setStyle(Paint.Style.FILL);
-        paint.setColor(theme.screenBg);
-        canvas.drawRoundRect(rect, radius, radius, paint);
+        if (theme.isLiquidGlass()) {
+            paint.setShader(new LinearGradient(0, 0, 0, h,
+                    new int[]{theme.bgTop, theme.bgMid, theme.bgBottom}, null, Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(rect, radius, radius, paint);
+            paint.setShader(new RadialGradient(w * 0.82f, h * 0.14f, Math.max(w, h) * 0.65f,
+                    0x4464D2FF, 0x0064D2FF, Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(rect, radius, radius, paint);
+            paint.setShader(null);
+        } else {
+            paint.setColor(theme.screenBg);
+            canvas.drawRoundRect(rect, radius, radius, paint);
+        }
 
         // Header mock: compact clock, date, weather capsule and 3 top-right circular actions.
         paint.setColor(theme.textPrimary);
@@ -72,6 +85,12 @@ public class ThemeCardView extends View {
             float x = 10 * d + i * (cardW + cardGap);
             paint.setColor(theme.card);
             canvas.drawRoundRect(new RectF(x, shelfTop, x + cardW, shelfTop + cardH), 3.5f * d, 3.5f * d, paint);
+            if (theme.isLiquidGlass()) {
+                paint.setShader(new LinearGradient(x, shelfTop, x, shelfTop + cardH * 0.5f,
+                        0x33FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+                canvas.drawRoundRect(new RectF(x, shelfTop, x + cardW, shelfTop + cardH), 3.5f * d, 3.5f * d, paint);
+                paint.setShader(null);
+            }
             if (i == 0) {
                 paint.setStyle(Paint.Style.STROKE);
                 float focusStroke = 3.5f * d;
@@ -108,10 +127,22 @@ public class ThemeCardView extends View {
             rect.set(8 * d, bandTop, w - 8 * d, bandTop + bandH);
             paint.setColor(theme.dockBand);
             canvas.drawRoundRect(rect, 5.5f * d, 5.5f * d, paint);
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(d);
-            paint.setColor(theme.dockEdge);
-            canvas.drawRoundRect(rect, 5.5f * d, 5.5f * d, paint);
+            if (theme.isLiquidGlass()) {
+                paint.setShader(new LinearGradient(rect.left, rect.top, rect.left, rect.top + bandH * 0.55f,
+                        0x40FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+                canvas.drawRoundRect(rect, 5.5f * d, 5.5f * d, paint);
+                paint.setShader(new LinearGradient(rect.left, rect.top, rect.right, rect.bottom,
+                        new int[]{0xD9FFFFFF, 0x4DFFFFFF, 0xB364D2FF}, null, Shader.TileMode.CLAMP));
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(d);
+                canvas.drawRoundRect(rect, 5.5f * d, 5.5f * d, paint);
+                paint.setShader(null);
+            } else {
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(d);
+                paint.setColor(theme.dockEdge);
+                canvas.drawRoundRect(rect, 5.5f * d, 5.5f * d, paint);
+            }
             paint.setStyle(Paint.Style.FILL);
             miniRow(canvas, 11.5f * d, rect.width() - 7 * d, bandTop + (bandH - miniH) / 2f, miniH);
         } else {

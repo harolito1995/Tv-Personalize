@@ -66,8 +66,6 @@ import android.widget.VideoView;
 
 import androidx.annotation.NonNull;
 
-import java.io.File;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -134,6 +132,7 @@ public class MainActivity extends Activity {
 
     private String liveTvPkg;
     private BackgroundAudioGuard audioGuard;
+    private LinearLayout dockRow;
     private DockBar dock;
     private static final ExecutorService TOP_SHELF_IO = Executors.newFixedThreadPool(2);
     private final ShelfCard[] shelf = new ShelfCard[2];
@@ -175,6 +174,8 @@ public class MainActivity extends Activity {
     private View bottomDivider1;
     private View bottomDivider2;
     private String appliedThemeId;
+    private String appliedDockStyle;
+    private String appliedFavouritesSig;
     private boolean appsDirty = true;
     private boolean wasStopped;
     private boolean watchNextObserverRegistered;
@@ -239,6 +240,8 @@ public class MainActivity extends Activity {
     private final BroadcastReceiver packageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            AppAdapter.clearCache();
+            AppColorExtractor.clearCache();
             appsDirty = true;
         }
     };
@@ -250,13 +253,16 @@ public class MainActivity extends Activity {
         density = getResources().getDisplayMetrics().density;
         liveTvPkg = getString(R.string.live_tv_package).trim();
         audioGuard = new BackgroundAudioGuard(this);
+        audioGuard.setOnMediaRecordedListener(() -> {
+            if (!isFinishing() && !isDestroyed()) updateTopShelf(false);
+        });
 
         root = findViewById(R.id.root);
         ambient = findViewById(R.id.ambient);
         scrimTop = findViewById(R.id.scrimTop);
         scrimBottom = findViewById(R.id.scrimBottom);
         clock = findViewById(R.id.clock);
-        // ampm = findViewById(R.id.ampm);`n        ampm = null;
+        ampm = null;
         date = findViewById(R.id.date);
         // brandTitle removed
         topShelfLabel = findViewById(R.id.topShelfLabel);
@@ -327,7 +333,8 @@ public class MainActivity extends Activity {
         }
 
         // ---- dock ----
-        dock = new DockBar(this, (LinearLayout) findViewById(R.id.dockRow), new DockBar.Callbacks() {
+        dockRow = findViewById(R.id.dockRow);
+        dock = new DockBar(this, dockRow, new DockBar.Callbacks() {
             @Override
             public void onTileFocused(int index, int color) {
                 if (index >= 0) lastDock = index;
@@ -336,7 +343,18 @@ public class MainActivity extends Activity {
 
             @Override
             public void onRebuilt() {
+                appliedFavouritesSig = Prefs.favouritesSignature(MainActivity.this);
                 wireDockNavigation();
+            }
+
+            @Override
+            public void onAddFavouriteRequested() {
+                startActivity(new Intent(MainActivity.this, AllAppsActivity.class));
+            }
+
+            @Override
+            public void onDockEmpty() {
+                if (btnApps != null) btnApps.requestFocus();
             }
         });
 
@@ -493,7 +511,8 @@ public class MainActivity extends Activity {
         final boolean returningFromApp = wasStopped;
         wasStopped = false;
         applyTheme();
-        if (appsDirty) {
+        String favSig = Prefs.favouritesSignature(this);
+        if (appsDirty || !favSig.equals(appliedFavouritesSig)) {
             dock.reload();
             appsDirty = false;
         }
@@ -515,7 +534,7 @@ public class MainActivity extends Activity {
         if (returningFromApp || getCurrentFocus() == null) {
             root.post(() -> {
                 if (returningFromApp || getCurrentFocus() == null) {
-                    dock.focus(lastDock);
+                    if (!dock.focus(lastDock) && btnApps != null) btnApps.requestFocus();
                 }
             });
         }
@@ -576,10 +595,10 @@ public class MainActivity extends Activity {
         link(shelf[0].root, in, c0, c1, c0);
         link(shelf[1].root, wi, c0, c1, c1);
 
-        // Down from the shelf enters the dock on the tile we last used.
+        // Down from the shelf enters the dock on the tile we last used, or Apps pill if empty.
         View.OnKeyListener shelfKeys = (v, keyCode, event) -> {
             if (event.getAction() != KeyEvent.ACTION_DOWN || keyCode != KeyEvent.KEYCODE_DPAD_DOWN) return false;
-            dock.focus(lastDock);
+            if (!dock.focus(lastDock) && btnApps != null) btnApps.requestFocus();
             return true;
         };
         shelf[0].root.setOnKeyListener(shelfKeys);
@@ -594,7 +613,7 @@ public class MainActivity extends Activity {
         link(btnWeather, we, th, we, we);
         View.OnKeyListener bottomKeys = (v, keyCode, event) -> {
             if (event.getAction() != KeyEvent.ACTION_DOWN || keyCode != KeyEvent.KEYCODE_DPAD_UP) return false;
-            dock.focus(lastDock);
+            if (!dock.focus(lastDock)) shelf[0].root.requestFocus();
             return true;
         };
         for (View b : new View[]{btnApps, btnSearch, btnPersonalize, btnThemes, btnWeather}) {
@@ -674,12 +693,14 @@ public class MainActivity extends Activity {
                 try {
                     Intent i = Intent.parseUri(item.intentUri, Intent.URI_INTENT_SCHEME);
                     i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    final String pkg = item.targetPackage;
-                    open(i);
-                    if (pkg != null && !pkg.isEmpty()) {
-                        handler.post(() -> TopShelfStore.recordAppLaunch(getApplicationContext(), pkg));
+                    if (i.resolveActivity(getPackageManager()) != null) {
+                        final String pkg = item.targetPackage;
+                        open(i);
+                        if (pkg != null && !pkg.isEmpty()) {
+                            handler.post(() -> TopShelfStore.recordAppLaunch(getApplicationContext(), pkg));
+                        }
+                        return;
                     }
-                    return;
                 } catch (Exception ignored) {
                 }
             }
@@ -692,6 +713,7 @@ public class MainActivity extends Activity {
                     handler.post(() -> TopShelfStore.recordAppLaunch(getApplicationContext(), pkg));
                     return;
                 }
+                Toast.makeText(this, R.string.top_shelf_not_installed, Toast.LENGTH_SHORT).show();
             }
             TopShelfEditDialog.show(this, slot, s -> updateTopShelf(true));
         });
@@ -737,7 +759,8 @@ public class MainActivity extends Activity {
         if (sameShelfItem(card.item, item)) return false;
         card.item = item;
 
-        boolean populated = !item.title.trim().isEmpty() || item.hasBackdrop() || item.hasTarget();
+        String displayBackdrop = TopShelfStore.resolveDisplayBackdrop(item);
+        boolean populated = !item.title.trim().isEmpty() || !displayBackdrop.isEmpty() || item.hasTarget();
         int cardW = getResources().getDimensionPixelSize(populated
                 ? R.dimen.top_shelf_card_width : R.dimen.top_shelf_empty_card_width);
         int cardH = getResources().getDimensionPixelSize(populated
@@ -798,10 +821,11 @@ public class MainActivity extends Activity {
             card.progress.setVisibility(View.GONE);
         }
 
-        if (item.hasBackdrop()) {
+        if (card.emptyHint != null) card.emptyHint.setText(title);
+        if (!displayBackdrop.isEmpty()) {
             String loadedUri = card.image.getTag() instanceof String ? (String) card.image.getTag() : null;
-            if (!item.backdropUri.equals(loadedUri)) {
-                loadTopShelfBackdrop(item.backdropUri, card.image, card.emptyState);
+            if (!displayBackdrop.equals(loadedUri)) {
+                loadTopShelfBackdrop(displayBackdrop, card.image, card.emptyState);
             } else if (card.image.getDrawable() != null) {
                 card.image.setVisibility(View.VISIBLE);
                 if (card.emptyState != null) card.emptyState.setVisibility(View.GONE);
@@ -812,10 +836,121 @@ public class MainActivity extends Activity {
             card.image.setVisibility(View.GONE);
             if (card.emptyState != null) {
                 card.emptyState.setVisibility(View.VISIBLE);
-                if (card.emptyHint != null) card.emptyHint.setText(title);
             }
         }
         return true;
+    }
+
+    static boolean isPortraitArtwork(int width, int height) {
+        return width > 0 && height > 0 && height > (width * 1.15f);
+    }
+
+    private static Bitmap composePortraitCardBitmap(Bitmap src, int targetW, int targetH) {
+        if (src == null || src.isRecycled() || targetW <= 0 || targetH <= 0) return null;
+        int sw = src.getWidth();
+        int sh = src.getHeight();
+        if (sw <= 0 || sh <= 0) return null;
+        try {
+            int bw = 48;
+            int bh = 27;
+            Bitmap small = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
+            Canvas sc = new Canvas(small);
+            Paint fp = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
+            Rect crop = centerCropRect(sw, sh, bw, bh);
+            sc.drawBitmap(src, crop, new Rect(0, 0, bw, bh), fp);
+            int[] px = new int[bw * bh];
+            small.getPixels(px, 0, bw, 0, 0, bw, bh);
+            boxBlurArgb(px, bw, bh, 4);
+            small.setPixels(px, 0, bw, 0, 0, bw, bh);
+
+            Bitmap out = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888);
+            Canvas c = new Canvas(out);
+            c.drawBitmap(small, new Rect(0, 0, bw, bh), new Rect(0, 0, targetW, targetH), fp);
+            small.recycle();
+
+            Paint dim = new Paint();
+            dim.setColor(0x59000000);
+            c.drawRect(0, 0, targetW, targetH, dim);
+
+            float scale = (float) targetH / sh;
+            int drawW = Math.max(1, Math.min(targetW, Math.round(sw * scale)));
+            int left = (targetW - drawW) / 2;
+
+            Paint shadow = new Paint();
+            shadow.setColor(0x28000000);
+            c.drawRect(Math.max(0, left - 12), 0, Math.min(targetW, left + drawW + 12), targetH, shadow);
+            shadow.setColor(0x55000000);
+            c.drawRect(Math.max(0, left - 6), 0, Math.min(targetW, left + drawW + 6), targetH, shadow);
+
+            c.drawBitmap(src, new Rect(0, 0, sw, sh), new Rect(left, 0, left + drawW, targetH), fp);
+            return out;
+        } catch (Exception | OutOfMemoryError ignored) {
+            return null;
+        }
+    }
+
+    private static void boxBlurArgb(int[] pixels, int w, int h, int radius) {
+        if (radius <= 0 || w <= 1 || h <= 1) return;
+        int[] tmp = new int[w * h];
+        int window = radius * 2 + 1;
+        for (int y = 0; y < h; y++) {
+            int row = y * w;
+            for (int x = 0; x < w; x++) {
+                int a = 0, r = 0, g = 0, b = 0;
+                for (int dx = -radius; dx <= radius; dx++) {
+                    int sx = Math.max(0, Math.min(w - 1, x + dx));
+                    int p = pixels[row + sx];
+                    a += (p >>> 24) & 0xFF;
+                    r += (p >>> 16) & 0xFF;
+                    g += (p >>> 8) & 0xFF;
+                    b += p & 0xFF;
+                }
+                tmp[row + x] = ((a / window) << 24) | ((r / window) << 16) | ((g / window) << 8) | (b / window);
+            }
+        }
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                int a = 0, r = 0, g = 0, b = 0;
+                for (int dy = -radius; dy <= radius; dy++) {
+                    int sy = Math.max(0, Math.min(h - 1, y + dy));
+                    int p = tmp[sy * w + x];
+                    a += (p >>> 24) & 0xFF;
+                    r += (p >>> 16) & 0xFF;
+                    g += (p >>> 8) & 0xFF;
+                    b += p & 0xFF;
+                }
+                pixels[y * w + x] = ((a / window) << 24) | ((r / window) << 16) | ((g / window) << 8) | (b / window);
+            }
+        }
+    }
+
+    static int computeInSampleSize(int srcW, int srcH, int reqW, int reqH) {
+        if (srcW <= 0 || srcH <= 0 || reqW <= 0 || reqH <= 0) return 1;
+        int sample = 1;
+        while ((srcW / (sample * 2)) > reqW && (srcH / (sample * 2)) > reqH) {
+            sample *= 2;
+        }
+        return sample;
+    }
+
+    private static Bitmap decodeSampledFile(File file, int reqW, int reqH) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inSampleSize = computeInSampleSize(bounds.outWidth, bounds.outHeight, reqW, reqH);
+        return BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+    }
+
+    private static void trimTopShelfCache(File cacheDir, int maxFiles) {
+        File[] files = cacheDir != null ? cacheDir.listFiles(
+                (dir, name) -> name.startsWith("ts_") && !name.endsWith(".part")) : null;
+        if (files == null || files.length <= maxFiles) return;
+        java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
+        for (int i = 0; i < files.length - maxFiles; i++) {
+            files[i].delete();
+        }
     }
 
     private void loadTopShelfBackdrop(String uriStr, ImageView imgView, View watermarkView) {
@@ -826,6 +961,8 @@ public class MainActivity extends Activity {
             return;
         }
 
+        final int reqW = Math.max(480, getResources().getDimensionPixelSize(R.dimen.top_shelf_card_width));
+        final int reqH = Math.max(270, getResources().getDimensionPixelSize(R.dimen.top_shelf_card_height));
         imgView.setTag(uriStr);
         TOP_SHELF_IO.execute(() -> {
             Bitmap bmp = null;
@@ -838,16 +975,15 @@ public class MainActivity extends Activity {
                     if (pkgName != null && !pkgName.isEmpty()) {
                         try {
                             PackageManager pm = getPackageManager();
-                            Intent intent = pm.getLeanbackLaunchIntentForPackage(pkgName);
-                            if (intent == null) intent = pm.getLaunchIntentForPackage(pkgName);
+                            Intent intent = AppAdapter.launchIntentForPackage(pm, pkgName);
                             if (intent != null && intent.getComponent() != null) {
                                 Drawable[] art = AppAdapter.loadArtwork(this, intent.getComponent());
                                 Drawable d = (art != null && art[0] != null) ? art[0] : (art != null ? art[1] : null);
                                 if (d instanceof BitmapDrawable) {
                                     bmp = ((BitmapDrawable) d).getBitmap();
                                 } else if (d != null) {
-                                    int w = Math.max(1, d.getIntrinsicWidth() > 0 ? d.getIntrinsicWidth() : Math.round(296f * density));
-                                    int h = Math.max(1, d.getIntrinsicHeight() > 0 ? d.getIntrinsicHeight() : Math.round(166f * density));
+                                    int w = Math.max(1, d.getIntrinsicWidth() > 0 ? d.getIntrinsicWidth() : reqW);
+                                    int h = Math.max(1, d.getIntrinsicHeight() > 0 ? d.getIntrinsicHeight() : reqH);
                                     bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
                                     Canvas canvas = new Canvas(bmp);
                                     d.setBounds(0, 0, w, h);
@@ -860,44 +996,68 @@ public class MainActivity extends Activity {
                 } else if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
                     File cache = new File(getCacheDir(), "ts_" + Integer.toHexString(uriStr.hashCode()) + ".jpg");
                     if (!cache.exists() || cache.length() == 0) {
-                        HttpURLConnection conn = (HttpURLConnection) new URL(uriStr).openConnection();
-                        conn.setConnectTimeout(6000);
-                        conn.setReadTimeout(6000);
-                        conn.setRequestProperty("User-Agent", "HarolHomeTV/1.0");
-                        conn.connect();
-                        if (conn.getResponseCode() == 200) {
-                            try (InputStream in = conn.getInputStream();
-                                 FileOutputStream out = new FileOutputStream(cache)) {
-                                byte[] buf = new byte[8192];
-                                int len;
-                                while ((len = in.read(buf)) > 0) {
-                                    out.write(buf, 0, len);
+                        File part = new File(getCacheDir(), cache.getName() + ".part");
+                        HttpURLConnection conn = null;
+                        try {
+                            conn = (HttpURLConnection) new URL(uriStr).openConnection();
+                            conn.setConnectTimeout(6000);
+                            conn.setReadTimeout(6000);
+                            conn.setRequestProperty("User-Agent", "HarolHomeTV/1.0");
+                            conn.connect();
+                            if (conn.getResponseCode() == 200) {
+                                try (InputStream in = conn.getInputStream();
+                                     FileOutputStream out = new FileOutputStream(part)) {
+                                    byte[] buf = new byte[8192];
+                                    int len;
+                                    while ((len = in.read(buf)) > 0) {
+                                        out.write(buf, 0, len);
+                                    }
+                                }
+                                BitmapFactory.Options probe = new BitmapFactory.Options();
+                                probe.inJustDecodeBounds = true;
+                                BitmapFactory.decodeFile(part.getAbsolutePath(), probe);
+                                if (probe.outWidth > 0 && probe.outHeight > 0 && part.renameTo(cache)) {
+                                    trimTopShelfCache(getCacheDir(), 20);
+                                } else {
+                                    part.delete();
                                 }
                             }
+                        } finally {
+                            if (part.exists()) part.delete();
+                            if (conn != null) conn.disconnect();
                         }
                     }
                     if (cache.exists() && cache.length() > 0) {
-                        BitmapFactory.Options opts = new BitmapFactory.Options();
-                        opts.inSampleSize = 2; // scale down for 16:9 card to save RAM
-                        bmp = BitmapFactory.decodeFile(cache.getAbsolutePath(), opts);
+                        bmp = decodeSampledFile(cache, reqW, reqH);
+                        if (bmp == null) cache.delete();
                     }
                 } else if ("content".equalsIgnoreCase(scheme) || "file".equalsIgnoreCase(scheme)
                         || "android.resource".equalsIgnoreCase(scheme)) {
-                    try (InputStream in = getContentResolver().openInputStream(uri)) {
+                    BitmapFactory.Options bounds = new BitmapFactory.Options();
+                    bounds.inJustDecodeBounds = true;
+                    try (InputStream in1 = getContentResolver().openInputStream(uri)) {
+                        if (in1 != null) BitmapFactory.decodeStream(in1, null, bounds);
+                    }
+                    if (bounds.outWidth > 0 && bounds.outHeight > 0) {
                         BitmapFactory.Options opts = new BitmapFactory.Options();
-                        opts.inSampleSize = 2;
-                        bmp = BitmapFactory.decodeStream(in, null, opts);
+                        opts.inSampleSize = computeInSampleSize(bounds.outWidth, bounds.outHeight, reqW, reqH);
+                        try (InputStream in2 = getContentResolver().openInputStream(uri)) {
+                            if (in2 != null) bmp = BitmapFactory.decodeStream(in2, null, opts);
+                        }
                     }
                 }
             } catch (Exception ignored) {
             }
 
+            if (bmp != null && isPortraitArtwork(bmp.getWidth(), bmp.getHeight())) {
+                Bitmap composed = composePortraitCardBitmap(bmp, reqW, reqH);
+                if (composed != null) bmp = composed;
+            }
             final Bitmap res = bmp;
             runOnUiThread(() -> {
                 if (uriStr.equals(imgView.getTag())) {
                     if (res != null) {
-                        boolean isPortrait = res.getHeight() > (res.getWidth() * 1.15f);
-                        imgView.setScaleType(isPortrait ? ImageView.ScaleType.FIT_CENTER : ImageView.ScaleType.CENTER_CROP);
+                        imgView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                         imgView.setImageBitmap(res);
                         imgView.setVisibility(View.VISIBLE);
                         if (watermarkView != null) watermarkView.setVisibility(View.GONE);
@@ -992,8 +1152,36 @@ public class MainActivity extends Activity {
     /** Paints the home with the chosen theme. Called on every resume: the theme may have changed in Personalize. */
     private void applyTheme() {
         LauncherTheme t = LauncherTheme.byId(Prefs.theme(this));
-        if (t.id.equals(appliedThemeId)) return;
+        String dockStyle = Prefs.dockStyle(this);
+        boolean themeChanged = !t.id.equals(appliedThemeId);
+        boolean dockChanged = !dockStyle.equals(appliedDockStyle);
+        if (!themeChanged && !dockChanged) return;
         appliedThemeId = t.id;
+        appliedDockStyle = dockStyle;
+
+        if (dockRow != null) {
+            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) dockRow.getLayoutParams();
+            if (Prefs.DOCK_BAND.equals(dockStyle)) {
+                int padH = Math.round(10f * density);
+                dockRow.setBackground(ThemeKit.dockBand(this, t));
+                dockRow.setPadding(padH, Math.round(8f * density), padH, Math.round(4f * density));
+                if (lp != null) {
+                    lp.setMarginStart(-padH);
+                    lp.setMarginEnd(-padH);
+                    dockRow.setLayoutParams(lp);
+                }
+            } else {
+                dockRow.setBackground(null);
+                dockRow.setPadding(0, 0, 0, 0);
+                if (lp != null) {
+                    lp.setMarginStart(0);
+                    lp.setMarginEnd(0);
+                    dockRow.setLayoutParams(lp);
+                }
+            }
+        }
+        if (!themeChanged) return;
+
         dock.setTheme(t);
         appsDirty = true;   // the dock labels take the theme's text colour when rebuilt
 
@@ -1019,6 +1207,12 @@ public class MainActivity extends Activity {
             if (card != null && card.frame != null) {
                 ThemeKit.applyCard(card.frame, t, shelfRadiusPx);
                 applyShelfCardColors(card, t, card.root.isFocused());
+                if (card.progress != null) {
+                    card.progress.setProgressDrawable(ThemeKit.progressBarDrawable(this, t));
+                    int cur = card.progress.getProgress();
+                    card.progress.setProgress(0);
+                    card.progress.setProgress(cur);
+                }
             }
         }
 
@@ -1240,7 +1434,8 @@ public class MainActivity extends Activity {
             Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
             Rect src = centerCropRect(base.getWidth(), base.getHeight(), width, height);
             canvas.drawBitmap(base, src, new Rect(0, 0, width, height), paint);
-            paint.setColor(0x66000000);
+            int dimColor = theme.isLight() ? 0x4DF2F6FB : (theme.isLiquidGlass() ? 0x40000000 : 0x66000000);
+            paint.setColor(dimColor);
             canvas.drawRect(0, 0, width, height, paint);
             Drawable top = ThemeKit.scrimTop(this, theme);
             top.setBounds(0, 0, width, getResources().getDimensionPixelSize(R.dimen.scrim_top_height));

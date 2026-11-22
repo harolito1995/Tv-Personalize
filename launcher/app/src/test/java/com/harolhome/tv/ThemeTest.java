@@ -14,8 +14,8 @@ import java.util.Set;
 public class ThemeTest {
 
     @Test
-    public void fourThemesWithUniqueIds() {
-        assertEquals(4, LauncherTheme.all().size());
+    public void fiveThemesWithUniqueIds() {
+        assertEquals(5, LauncherTheme.all().size());
         Set<String> ids = new HashSet<>();
         for (LauncherTheme t : LauncherTheme.all()) {
             assertTrue("duplicate id " + t.id, ids.add(t.id));
@@ -24,6 +24,7 @@ public class ThemeTest {
             assertNotEquals(0, t.taglineRes);
         }
         assertTrue(ids.contains(LauncherTheme.DEFAULT_ID));
+        assertTrue(ids.contains("liquidglass"));
     }
 
     @Test
@@ -33,6 +34,7 @@ public class ThemeTest {
         assertEquals(LauncherTheme.DEFAULT_ID, LauncherTheme.byId("does-not-exist").id);
         assertEquals("midnight", LauncherTheme.byId("midnight").id);
         assertEquals("arctic", LauncherTheme.byId("arctic").id);
+        assertEquals("liquidglass", LauncherTheme.byId("liquidglass").id);
     }
 
     @Test
@@ -55,9 +57,20 @@ public class ThemeTest {
             accents.add(t.accent);
             texts.add(t.textPrimary);
         }
-        assertEquals(4, cards.size());
-        assertEquals(4, accents.size());
-        assertEquals(4, texts.size());
+        assertEquals(5, cards.size());
+        assertEquals(5, accents.size());
+        assertEquals(5, texts.size());
+    }
+
+    @Test
+    public void onlyLiquidGlassUsesSpecularSurfaceMode() {
+        for (LauncherTheme t : LauncherTheme.all()) {
+            if ("liquidglass".equals(t.id)) {
+                assertTrue("liquidglass must enable liquidGlass surface mode", t.isLiquidGlass());
+            } else {
+                assertFalse("only liquidglass should enable liquidGlass flag", t.isLiquidGlass());
+            }
+        }
     }
 
     @Test

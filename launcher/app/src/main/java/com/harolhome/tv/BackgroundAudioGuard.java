@@ -9,7 +9,10 @@ import android.media.session.PlaybackState;
 import android.provider.Settings;
 import android.view.KeyEvent;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 /**
@@ -30,9 +33,36 @@ import java.util.List;
 final class BackgroundAudioGuard {
 
     private final Context ctx;
+    private final Set<String> keepPlayingApps;
+    private volatile Runnable onMediaRecordedListener;
 
     BackgroundAudioGuard(Context ctx) {
         this.ctx = ctx.getApplicationContext();
+        this.keepPlayingApps = loadKeepPlayingApps(this.ctx);
+    }
+
+    private static Set<String> loadKeepPlayingApps(Context c) {
+        Set<String> set = new HashSet<>();
+        try {
+            String[] arr = c.getResources().getStringArray(R.array.keep_playing_apps);
+            set.addAll(Arrays.asList(arr));
+        } catch (Exception ignored) {
+        }
+        return set;
+    }
+
+    void setOnMediaRecordedListener(Runnable listener) {
+        this.onMediaRecordedListener = listener;
+    }
+
+    static boolean shouldPausePackage(String pkg, String selfPkg, Set<String> keepPlaying) {
+        if (pkg == null || pkg.trim().isEmpty()) return false;
+        if (pkg.equals(selfPkg) || "com.android.bluetooth".equals(pkg)) return false;
+        return keepPlaying == null || !keepPlaying.contains(pkg);
+    }
+
+    static boolean shouldRecordPlayback(String pkg, String selfPkg, Set<String> keepPlaying) {
+        return shouldPausePackage(pkg, selfPkg, keepPlaying);
     }
 
     /** True when this app is an enabled notification listener (needed to see other apps' sessions). */
@@ -54,30 +84,32 @@ final class BackgroundAudioGuard {
         }
     }
 
-    /** @return true when one or more active sessions were paused. */
+    /** @return true when session inspection succeeded so exempted music apps are never paused by key fallback. */
     private boolean pauseSessions() {
         try {
             MediaSessionManager msm = (MediaSessionManager) ctx.getSystemService(Context.MEDIA_SESSION_SERVICE);
             if (msm == null) return false;
             List<MediaController> sessions = msm.getActiveSessions(
                     new ComponentName(ctx, MediaSessionListener.class));
-            boolean paused = false;
+            String selfPkg = ctx.getPackageName();
             for (MediaController mc : sessions) {
                 String pkg = mc.getPackageName();
-                if (pkg == null || pkg.equals(ctx.getPackageName())) continue;
                 PlaybackState st = mc.getPlaybackState();
                 if (st == null) continue;
                 int state = st.getState();
-                if (state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING
-                        || state == PlaybackState.STATE_PAUSED) {
-                    TopShelfStore.recordActivePlayback(ctx, mc);
-                    if (state != PlaybackState.STATE_PAUSED) {
-                        mc.getTransportControls().pause();
-                        paused = true;
-                    }
+                boolean active = state == PlaybackState.STATE_PLAYING
+                        || state == PlaybackState.STATE_BUFFERING
+                        || state == PlaybackState.STATE_PAUSED;
+                if (!active) continue;
+                if (shouldRecordPlayback(pkg, selfPkg, keepPlayingApps)) {
+                    TopShelfStore.recordActivePlaybackAsync(ctx, mc, onMediaRecordedListener);
+                }
+                if (shouldPausePackage(pkg, selfPkg, keepPlayingApps)
+                        && (state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING)) {
+                    mc.getTransportControls().pause();
                 }
             }
-            return paused;
+            return true;
         } catch (SecurityException e) {
             return false;   // access revoked or the service is not bound yet
         }

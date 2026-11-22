@@ -57,10 +57,10 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_marginTop="12dp"
-            android:paddingTop="6dp"
+            android:paddingTop="10dp"
             android:paddingBottom="40dp"
-            android:clipToPadding="false"
-            android:clipChildren="false"
+            android:clipToPadding="true"
+            android:clipChildren="true"
             android:overScrollMode="never"
             android:scrollbars="none" />
     </LinearLayout>

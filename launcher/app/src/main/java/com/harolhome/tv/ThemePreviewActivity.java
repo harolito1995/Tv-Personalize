@@ -6,6 +6,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,6 +46,8 @@ public class ThemePreviewActivity extends Activity {
         float density = getResources().getDisplayMetrics().density;
         ((TextView) findViewById(R.id.mockClock)).setTextColor(theme.textPrimary);
         ((TextView) findViewById(R.id.mockDate)).setTextColor(theme.textSecondary);
+        View weatherPill = findViewById(R.id.mockWeatherPill);
+        if (weatherPill != null) weatherPill.setBackground(ThemeKit.weatherCapsuleBackground(this, theme));
         TextView weatherText = findViewById(R.id.mockWeatherText);
         if (weatherText != null) weatherText.setTextColor(theme.textPrimary);
         TextView shelfLabel = findViewById(R.id.mockShelfLabel);
@@ -84,8 +87,16 @@ public class ThemePreviewActivity extends Activity {
                 FrameLayout frame = new FrameLayout(this);
                 ThemeKit.applyCard(frame, theme, shelfRadius);
                 if (i == 0) {
-                    // Show the focus ring on the first mock Continue Watching card so the user sees focus contrast.
+                    // Show the focus ring and themed hairline progress bar on the first mock card.
                     frame.setSelected(true);
+                    ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+                    pb.setMax(100);
+                    pb.setProgressDrawable(ThemeKit.progressBarDrawable(this, theme));
+                    pb.setProgress(65);
+                    FrameLayout.LayoutParams pbLp = new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT, Math.max(2, Math.round(2 * density)));
+                    pbLp.gravity = Gravity.BOTTOM;
+                    frame.addView(pb, pbLp);
                 }
                 slotWrap.addView(frame, new LinearLayout.LayoutParams(shelfW, shelfH));
 

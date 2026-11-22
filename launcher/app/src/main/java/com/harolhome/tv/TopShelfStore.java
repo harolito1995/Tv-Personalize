@@ -845,6 +845,16 @@ public final class TopShelfStore {
         return posterUri != null ? posterUri.trim() : "";
     }
 
+    /** Resolves backdrop URI for display, falling back to app package artwork on custom slots. */
+    static String resolveDisplayBackdrop(Item item) {
+        if (item == null) return "";
+        if (item.hasBackdrop()) return item.backdropUri.trim();
+        if (item.isCustom && item.targetPackage != null && !item.targetPackage.trim().isEmpty()) {
+            return "package:" + item.targetPackage.trim();
+        }
+        return "";
+    }
+
     /** Real playback percentage, or -1 when the provider has no usable position/duration. */
     static int progressPercent(long positionMillis, long durationMillis) {
         if (positionMillis <= 0 || durationMillis <= 0) return -1;
@@ -939,75 +949,130 @@ public final class TopShelfStore {
         return cleanPkg;
     }
 
+    private static final int MAX_SESSION_ART_FILES = 10;
+
+    private static final class CapturedSession {
+        final String pkg;
+        final String title;
+        final String subtitle;
+        final String artUri;
+        final Bitmap artBmp;
+        final int progress;
+
+        CapturedSession(String pkg, String title, String subtitle, String artUri, Bitmap artBmp, int progress) {
+            this.pkg = pkg;
+            this.title = title;
+            this.subtitle = subtitle;
+            this.artUri = artUri;
+            this.artBmp = artBmp;
+            this.progress = progress;
+        }
+    }
+
+    private static CapturedSession captureSession(MediaController mc) {
+        if (mc == null) return null;
+        MediaMetadata meta = mc.getMetadata();
+        if (meta == null) return null;
+        String title = meta.getString(MediaMetadata.METADATA_KEY_TITLE);
+        if (title == null || title.trim().isEmpty()) return null;
+        title = title.trim();
+
+        String sub = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE);
+        if (sub == null || sub.trim().isEmpty()) {
+            sub = meta.getString(MediaMetadata.METADATA_KEY_ARTIST);
+        }
+        if (sub == null || sub.trim().isEmpty()) {
+            sub = meta.getString(MediaMetadata.METADATA_KEY_ALBUM);
+        }
+        sub = sub != null ? sub.trim() : "";
+
+        String artUri = meta.getString(MediaMetadata.METADATA_KEY_ART_URI);
+        if (artUri == null || artUri.trim().isEmpty()) {
+            artUri = meta.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI);
+        }
+        if (artUri == null || artUri.trim().isEmpty()) {
+            artUri = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI);
+        }
+
+        Bitmap artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_ART);
+        if (artBmp == null) {
+            artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+        }
+        if (artBmp == null) {
+            artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
+        }
+
+        PlaybackState st = mc.getPlaybackState();
+        long pos = st != null ? st.getPosition() : -1;
+        long dur = meta.getLong(MediaMetadata.METADATA_KEY_DURATION);
+        int progress = progressPercent(pos, dur);
+        String pkg = mc.getPackageName();
+        return new CapturedSession(pkg != null ? pkg : "", title, sub,
+                artUri != null ? artUri.trim() : "", artBmp, progress);
+    }
+
+    private static boolean persistCapturedSession(Context context, CapturedSession cap) {
+        if (context == null || cap == null) return false;
+        String finalArtUri = cap.artUri;
+        if (cap.artBmp != null && !cap.artBmp.isRecycled() && finalArtUri.isEmpty()) {
+            try {
+                File artDir = new File(context.getCacheDir(), "session_art");
+                if (!artDir.exists()) artDir.mkdirs();
+                File artFile = new File(artDir, "art_" + Math.abs((cap.pkg + cap.title).hashCode()) + ".jpg");
+                try (FileOutputStream fos = new FileOutputStream(artFile)) {
+                    cap.artBmp.compress(Bitmap.CompressFormat.JPEG, 85, fos);
+                }
+                finalArtUri = Uri.fromFile(artFile).toString();
+                trimOldFiles(artDir, MAX_SESSION_ART_FILES);
+            } catch (Exception ignored) {
+            }
+        }
+        Item liveItem = new Item(
+                "live_" + Math.abs((cap.pkg + cap.title).hashCode()),
+                cap.title,
+                cap.subtitle,
+                finalArtUri,
+                cap.pkg,
+                0,
+                false,
+                cap.progress,
+                ""
+        );
+        return pushLiveMediaItem(context, liveItem);
+    }
+
+    private static void trimOldFiles(File dir, int maxFiles) {
+        File[] files = dir != null ? dir.listFiles() : null;
+        if (files == null || files.length <= maxFiles) return;
+        java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
+        for (int i = 0; i < files.length - maxFiles; i++) {
+            if (files[i].isFile()) files[i].delete();
+        }
+    }
+
+    /** Captures session playback off the UI thread and invokes onRecorded on MainThread when saved. */
+    public static void recordActivePlaybackAsync(Context context, MediaController mc, Runnable onRecorded) {
+        if (context == null || mc == null) return;
+        final Context appCtx = context.getApplicationContext();
+        try {
+            final CapturedSession cap = captureSession(mc);
+            if (cap == null) return;
+            REFRESH_EXECUTOR.execute(() -> {
+                if (persistCapturedSession(appCtx, cap) && onRecorded != null) {
+                    MainThread.HANDLER.post(onRecorded);
+                }
+            });
+        } catch (Exception e) {
+            Log.w(TAG, "recordActivePlaybackAsync error: " + e.getMessage());
+        }
+    }
+
     /** Automatically captures real-time movie/series playback from active MediaSessions. */
     public static boolean recordActivePlayback(Context context, MediaController mc) {
         if (context == null || mc == null) return false;
         try {
-            MediaMetadata meta = mc.getMetadata();
-            if (meta == null) return false;
-            String title = meta.getString(MediaMetadata.METADATA_KEY_TITLE);
-            if (title == null || title.trim().isEmpty()) return false;
-            title = title.trim();
-
-            String sub = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE);
-            if (sub == null || sub.trim().isEmpty()) {
-                sub = meta.getString(MediaMetadata.METADATA_KEY_ARTIST);
-            }
-            if (sub == null || sub.trim().isEmpty()) {
-                sub = meta.getString(MediaMetadata.METADATA_KEY_ALBUM);
-            }
-            sub = sub != null ? sub.trim() : "";
-
-            String artUri = meta.getString(MediaMetadata.METADATA_KEY_ART_URI);
-            if (artUri == null || artUri.trim().isEmpty()) {
-                artUri = meta.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI);
-            }
-            if (artUri == null || artUri.trim().isEmpty()) {
-                artUri = meta.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI);
-            }
-
-            Bitmap artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_ART);
-            if (artBmp == null) {
-                artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
-            }
-            if (artBmp == null) {
-                artBmp = meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
-            }
-
-            if (artBmp != null && (artUri == null || artUri.trim().isEmpty())) {
-                try {
-                    File artDir = new File(context.getCacheDir(), "session_art");
-                    if (!artDir.exists()) artDir.mkdirs();
-                    File artFile = new File(artDir, "art_" + Math.abs((mc.getPackageName() + title).hashCode()) + ".jpg");
-                    try (FileOutputStream fos = new FileOutputStream(artFile)) {
-                        artBmp.compress(Bitmap.CompressFormat.JPEG, 85, fos);
-                    }
-                    artUri = Uri.fromFile(artFile).toString();
-                } catch (Exception ignored) {
-                }
-            }
-
-            PlaybackState st = mc.getPlaybackState();
-            long pos = st != null ? st.getPosition() : -1;
-            long dur = meta.getLong(MediaMetadata.METADATA_KEY_DURATION);
-            int progress = progressPercent(pos, dur);
-
-            String pkg = mc.getPackageName();
-            if (pkg == null) pkg = "";
-
-            Item liveItem = new Item(
-                    "live_" + Math.abs((pkg + title).hashCode()),
-                    title,
-                    sub,
-                    artUri != null ? artUri : "",
-                    pkg,
-                    0,
-                    false,
-                    progress,
-                    ""
-            );
-
-            return pushLiveMediaItem(context, liveItem);
+            CapturedSession cap = captureSession(mc);
+            return cap != null && persistCapturedSession(context, cap);
         } catch (Exception e) {
             Log.w(TAG, "recordActivePlayback error: " + e.getMessage());
             return false;
@@ -1019,22 +1084,24 @@ public final class TopShelfStore {
         Item[] current = readCachedSlots(context);
         if (current == null || current.length < 2) current = getVerifiedDefaultSlots();
 
+        Item[] next = new Item[2];
         if (current[0] != null && current[0].title.equalsIgnoreCase(item.title)
                 && current[0].targetPackage.equals(item.targetPackage)) {
-            current[0] = new Item(current[0].id, item.title,
+            next[0] = new Item(current[0].id, item.title,
                     item.subtitle.isEmpty() ? current[0].subtitle : item.subtitle,
                     item.hasBackdrop() ? item.backdropUri : current[0].backdropUri,
                     item.targetPackage, 0, false,
                     item.progressPercent > 0 ? item.progressPercent : current[0].progressPercent,
                     current[0].intentUri);
+            next[1] = current[1];
         } else {
             Item oldSlot0 = current[0] != null && isPopulated(current[0]) ? current[0] : getDefaultSlot(1);
-            current[1] = new Item(oldSlot0.id, oldSlot0.title, oldSlot0.subtitle, oldSlot0.backdropUri,
+            next[1] = new Item(oldSlot0.id, oldSlot0.title, oldSlot0.subtitle, oldSlot0.backdropUri,
                     oldSlot0.targetPackage, 1, false, oldSlot0.progressPercent, oldSlot0.intentUri);
-            current[0] = item;
+            next[0] = item;
         }
 
-        cacheSlots(context, current);
+        cacheSlots(context, next);
         Log.i(TAG, "live media playback recorded: " + item.title + " (" + item.targetPackage + ")");
         return true;
     }

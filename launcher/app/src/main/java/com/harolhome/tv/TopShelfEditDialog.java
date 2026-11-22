@@ -179,7 +179,7 @@ public final class TopShelfEditDialog {
         listView.setOnItemClickListener((parent, view, position, id) -> {
             if (position < 0 || position >= apps.size()) return;
             AppEntry entry = apps.get(position);
-            TopShelfStore.saveSlot(context, slot, entry.label, "", "", entry.pkg);
+            TopShelfStore.saveSlot(context, slot, entry.label, "", "package:" + entry.pkg, entry.pkg);
             Toast.makeText(context, entry.label + " asignada", Toast.LENGTH_SHORT).show();
             if (listener != null) listener.onSlotUpdated(slot);
             dialog.dismiss();
